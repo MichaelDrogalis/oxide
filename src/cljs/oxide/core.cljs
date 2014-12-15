@@ -9,18 +9,45 @@
             [om-tools.core :refer-macros [defcomponent]]
             [om-tools.dom :as d :include-macros true]))
 
-(defonce app-state (atom {}))
+(enable-console-print!)
+
+(def default-expr "LocateOnMap [Within [DataSet(\"restaurants\"), \"Baltimore, MD\"]]")
+
+(defonce app-state (atom {:inputs []
+                          :current-expression default-expr}))
 
 (defcomponent expression-editor [data owner]
-  (init-state [_] {})
-  (will-mount [_] {})
   (render-state [_ _] (d/pre {:id "editor"} ""))
   (did-mount [_]
              (let [editor (.edit js/ace "editor")]
                (.setOptions editor
                             (clj->js {:maxLines 15}))
                (.setMode (.getSession editor) "ace/mode/clojure")
-               (.insert editor "LocateOnMap [Within [DataSet(\"restaurants\"), \"Baltimore, MD\"]]"))))
+               (.insert editor default-expr)
+               (.on (.getSession editor) "change"
+                    (fn [e]
+                      (om/transact! data (fn [a] (assoc a :current-expression (.getValue editor)))))))))
+
+(defcomponent exchange [data owner]
+  (render-state [_ _]
+                (d/div
+                 (map-indexed
+                  (fn [k input]
+                    (r/well
+                     {}
+                     (d/div {:class "text-right"} (d/small (str "#" k)))
+                     (d/br)
+                     (d/pre input)
+                     (d/pre "Your output here...")))
+                  (:inputs data)))))
+
+(defcomponent submit [data owner]
+  (render-state [_ _]
+                (b/button {:bs-style "primary"
+                           :on-click
+                           (fn [e]
+                             (om/transact! data (fn [a] (assoc a :inputs (conj (:inputs a) (:current-expression @data))))))} 
+                          "Go!")))
 
 (defn main []
   (om/root
@@ -46,7 +73,8 @@
              (g/col {:xs 10 :md 10} (p/panel {:header (d/h4 "interactive repl")}
                                              (g/row {}
                                                     (g/col {:md 10}
-                                                           (om/build expression-editor {} {})
-                                                           (b/button {:bs-style "primary"} "Go!"))))))))))))
+                                                           (om/build exchange app {})
+                                                           (om/build expression-editor app {})
+                                                           (om/build submit app {}))))))))))))
    app-state
    {:target (. js/document (getElementById "app"))}))
