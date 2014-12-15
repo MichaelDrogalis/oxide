@@ -60,14 +60,17 @@
          (d/div
           (g/grid
            {}
-           (g/row
+           (r/page-header
             {}
-            (g/col
-             {:xs 10 :md 10}
-             (r/page-header
-              {}
-              (g/row {} "Oxide")
-              (g/row {} (d/small "Knowledge platform over Onyx")))))
+            (g/row
+             {}
+             (g/col
+              {:xs 5 :md 2}
+              (d/img {:id "logo" :src "img/logo-small.png"}))
+             (g/col
+              {:xs 1 :md 8}
+              (g/row {} (d/h1 {:id "title"} "Oxide"))
+              (g/row {} (d/small {:id "subtitle"} "Knowledge platform over Onyx")))))
            (g/row
             {}
             (g/row
