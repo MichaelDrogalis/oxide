@@ -29,6 +29,8 @@
                       (om/transact! data (fn [a] (assoc a :current-expression (.getValue editor)))))))))
 
 (defcomponent exchange [data owner]
+  (did-update [_ _ _]
+             (.scrollTo js/window 0 (.-scrollHeight (.-body js/document))))
   (render-state [_ _]
                 (d/div
                  (map-indexed
