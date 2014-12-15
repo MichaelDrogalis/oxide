@@ -3,11 +3,24 @@
             [om.dom :as dom :include-macros true]
             [om-bootstrap.panel :as p]
             [om-bootstrap.grid :as g]
+            [om-bootstrap.button :as b]
             [om-bootstrap.random :as r]
             [om-bootstrap.input :as i]
+            [om-tools.core :refer-macros [defcomponent]]
             [om-tools.dom :as d :include-macros true]))
 
-(defonce app-state (atom {:text "Hello Chestnut!"}))
+(defonce app-state (atom {}))
+
+(defcomponent expression-editor [data owner]
+  (init-state [_] {})
+  (will-mount [_] {})
+  (render-state [_ _] (d/pre {:id "editor"} ""))
+  (did-mount [_]
+             (let [editor (.edit js/ace "editor")]
+               (.setOptions editor
+                            (clj->js {:maxLines 15}))
+               (.setMode (.getSession editor) "ace/mode/clojure")
+               (.insert editor "LocateOnMap [Within [DataSet(\"restaurants\"), \"Baltimore, MD\"]]"))))
 
 (defn main []
   (om/root
@@ -32,15 +45,8 @@
              {}
              (g/col {:xs 10 :md 10} (p/panel {:header (d/h4 "interactive repl")}
                                              (g/row {}
-                                                    (g/col {:xs 10 :md 10}
-                                                           (d/code
-                                                            {}
-                                                            (i/input
-                                                             {:feedback? true
-                                                              :type "text"
-                                                              :placeholder "Enter text"
-                                                              :group-classname "group-class"
-                                                              :wrapper-classname "wrapper-class"
-                                                              :label-classname "label-class"})))))))))))))
+                                                    (g/col {:md 10}
+                                                           (om/build expression-editor {} {})
+                                                           (b/button {:bs-style "primary"} "Go!"))))))))))))
    app-state
    {:target (. js/document (getElementById "app"))}))
