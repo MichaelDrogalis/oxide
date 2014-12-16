@@ -1,5 +1,6 @@
 (ns oxide.onyx
-  (:require [onyx.api]))
+  (:require [onyx.peer.task-lifecycle-extensions :as l-ext]
+            [onyx.api]))
 
 (def workflow
   [[:partition-keys :read-rows]
@@ -41,6 +42,7 @@
     :onyx/doc "Reads rows of a SQL table bounded by a key range"}
 
    {:onyx/name :filter-by-city
+    :onyx/ident :oxide/filter-by-city
     :onyx/fn :oxide.onyx.impl/filter-by-city
     :onyx/type :function
     :onyx/consumption :concurrent
@@ -50,10 +52,11 @@
     :onyx/doc "Only emit entities that are in this city and state"}
 
    {:onyx/name :filter-by-rating
+    :onyx/ident :oxide/filter-by-rating
     :onyx/fn :oxide.onyx.impl/filter-by-rating
     :onyx/type :function
     :onyx/consumption :concurrent
-    :oxide/rating 4
+    :oxide/min-rating 4
     :onyx/batch-size 1000
     :onyx/doc "Only emit entities that at least as good as this rating"}
 
@@ -64,4 +67,15 @@
     :onyx/consumption :sequential
     :onyx/batch-size 1000
     :onyx/doc "Writes segments to a core.async channel"}])
+
+(defmethod l-ext/inject-lifecycle-resources
+  :oxide/filter-by-city
+  [_ event]
+  {:onyx.core/params [(:oxide/city (:onyx.core/task-map event))
+                      (:oxide/state (:onyx.core/task-map event))]})
+
+(defmethod l-ext/inject-lifecycle-resources
+  :oxide/filter-by-rating
+  [_ event]
+  {:onyx.core/params [(:oxide/min-rating (:onyx.core/task-map event))]})
 
