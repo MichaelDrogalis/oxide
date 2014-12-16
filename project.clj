@@ -3,11 +3,15 @@
   :url "https://github.com/MichaelDrogalis/oxide"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :source-paths ["src/clj" "src/cljs"]
+  :source-paths ["src/clj" "src/cljs" "joplin"]
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/clojurescript "0.0-2371" :scope "provided"]
+                 [org.clojure/java.jdbc "0.3.6"]
                  [com.mdrogalis/onyx "0.5.0-SNAPSHOT"]
+                 [cheshire "5.4.0"]
+                 [mysql/mysql-connector-java "5.1.6"]
                  [racehub/om-bootstrap "0.3.2"]
+                 [honeysql "0.4.3"]
                  [ring "1.3.1"]
                  [compojure "1.2.0"]
                  [enlive "1.1.5"]
@@ -17,9 +21,11 @@
                  [environ "1.0.0"]
                  [com.cemerick/piggieback "0.1.3"]
                  [weasel "0.4.0-SNAPSHOT"]
-                 [leiningen "2.5.0"]]
+                 [leiningen "2.5.0"]
+                 [joplin.core "0.2.4"]]
   :plugins [[lein-cljsbuild "1.0.3"]
-            [lein-environ "1.0.0"]]
+            [lein-environ "1.0.0"]
+            [joplin.lein "0.2.4"]]
   :min-lein-version "2.5.0"
   :uberjar-name "oxide.jar"
   :cljsbuild {:builds {:app {:source-paths ["src/cljs"]
@@ -46,4 +52,11 @@
                                             {:source-paths ["env/prod/cljs"]
                                              :compiler
                                              {:optimizations :advanced
-                                              :pretty-print false}}}}}})
+                                              :pretty-print false}}}}}}
+  :joplin {:migrators {:yelp "joplin/migrators/yelp"}
+           :seeds {:yelp "seeds.yelp/run"}
+           :databases {:yelp-dev {:type :sql
+                                  :url "jdbc:mysql://localhost:3306/oxide?user=root"
+                                  :subname "//localhost:3306/oxide?user=root"}}
+           :environments {:dev [{:db :yelp-dev :migrator :yelp :seed :yelp}]}})
+
