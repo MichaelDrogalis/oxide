@@ -12,7 +12,7 @@
 (defn run [target & args]
   (let [spec (db-spec (:subname (:db target)))
         xs (slurp (clojure.java.io/resource "data-sets/yelp/yelp_academic_dataset_business.json"))]
-    (doseq [x (take 10 (clojure.string/split xs #"\n"))]
+    (doseq [x (clojure.string/split xs #"\n")]
       (let [parsed (parse-string x true)]
         (jdbc/insert! spec :yelp_data_set
                       {:business_name (:name parsed)
