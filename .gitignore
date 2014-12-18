@@ -12,3 +12,5 @@ pom.xml.asc
 /.repl
 .DS_Store
 resources/data-sets/yelp
+data
+onyx.log
