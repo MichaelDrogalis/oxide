@@ -21,7 +21,7 @@
     :onyx/ident :sql/partition-keys
     :onyx/type :input
     :onyx/medium :sql
-    :onyx/consumption :sequential
+    :onyx/consumption :concurrent
     :onyx/bootstrap? true
     :sql/classname "com.mysql.jdbc.Driver"
     :sql/subprotocol "mysql"
@@ -32,6 +32,7 @@
     :sql/id :id
     :sql/rows-per-segment 1000
     :onyx/batch-size 1000
+    :onyx/max-peers 1
     :onyx/doc "Partitions a range of primary keys into subranges"}
 
    {:onyx/name :read-rows
