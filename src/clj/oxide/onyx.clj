@@ -1,6 +1,14 @@
 (ns oxide.onyx
-  (:require [onyx.peer.task-lifecycle-extensions :as l-ext]
-            [onyx.api]))
+  (:require [clojure.core.async :refer [chan <!!]]
+            [com.stuartsierra.component :as component]
+            [onyx.peer.task-lifecycle-extensions :as l-ext]
+            [onyx.system :refer [onyx-development-env]]
+            [onyx.plugin.core-async :refer [take-segments!]]
+            [onyx.plugin.sql]
+            [onyx.api]
+            [oxide.onyx.impl]))
+
+(def output-ch (chan 1000))
 
 (def workflow
   [[:partition-keys :read-rows]
@@ -64,18 +72,58 @@
     :onyx/ident :core.async/write-to-chan
     :onyx/type :output
     :onyx/medium :core.async
-    :onyx/consumption :sequential
+    :onyx/consumption :concurrent
     :onyx/batch-size 1000
+    :onyx/max-peers 1
     :onyx/doc "Writes segments to a core.async channel"}])
 
-(defmethod l-ext/inject-lifecycle-resources
-  :oxide/filter-by-city
+(defmethod l-ext/inject-lifecycle-resources :oxide/filter-by-city
   [_ event]
   {:onyx.core/params [(:oxide/city (:onyx.core/task-map event))
                       (:oxide/state (:onyx.core/task-map event))]})
 
-(defmethod l-ext/inject-lifecycle-resources
-  :oxide/filter-by-rating
+(defmethod l-ext/inject-lifecycle-resources :oxide/filter-by-rating
   [_ event]
   {:onyx.core/params [(:oxide/min-rating (:onyx.core/task-map event))]})
+
+(defmethod l-ext/inject-lifecycle-resources :out
+  [_ _] {:core-async/out-chan output-ch})
+
+(def id (java.util.UUID/randomUUID))
+
+(def env-config
+  {:hornetq/mode :vm
+   :hornetq/server? true
+   :hornetq.server/type :vm
+   :zookeeper/address "127.0.0.1:2185"
+   :zookeeper/server? true
+   :zookeeper.server/port 2185
+   :onyx/id id})
+
+(def peer-config
+  {:hornetq/mode :vm
+   :zookeeper/address "127.0.0.1:2185"   
+   :onyx/id id
+   :onyx.peer/inbox-capacity 1000
+   :onyx.peer/outbox-capacity 1000
+   :onyx.peer/job-scheduler :onyx.job-scheduler/round-robin})
+
+(def dev (onyx-development-env env-config))
+
+(def env (component/start dev))
+
+(def v-peers (onyx.api/start-peers! 1 peer-config))
+
+(onyx.api/submit-job
+ peer-config {:catalog catalog :workflow workflow
+              :task-scheduler :onyx.task-scheduler/round-robin})
+
+(def segments (take-segments! output-ch))
+
+(prn segments)
+
+(doseq [peer v-peers]
+  ((:shutdown-fn peer)))
+
+(component/stop env)
 
