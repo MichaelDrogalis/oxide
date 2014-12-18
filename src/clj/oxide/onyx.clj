@@ -57,6 +57,7 @@
     :onyx/consumption :concurrent
     :oxide/city "Phoenix"
     :oxide/state "AZ"
+    :onyx/params [:oxide/city :oxide/state]
     :onyx/batch-size 1000
     :onyx/doc "Only emit entities that are in this city and state"}
 
@@ -66,6 +67,7 @@
     :onyx/type :function
     :onyx/consumption :concurrent
     :oxide/min-rating 4
+    :onyx/params [:oxide/min-rating]
     :onyx/batch-size 1000
     :onyx/doc "Only emit entities that at least as good as this rating"}
 
@@ -77,15 +79,6 @@
     :onyx/batch-size 1000
     :onyx/max-peers 1
     :onyx/doc "Writes segments to a core.async channel"}])
-
-(defmethod l-ext/inject-lifecycle-resources :oxide/filter-by-city
-  [_ event]
-  {:onyx.core/params [(:oxide/city (:onyx.core/task-map event))
-                      (:oxide/state (:onyx.core/task-map event))]})
-
-(defmethod l-ext/inject-lifecycle-resources :oxide/filter-by-rating
-  [_ event]
-  {:onyx.core/params [(:oxide/min-rating (:onyx.core/task-map event))]})
 
 (defmethod l-ext/inject-lifecycle-resources :out
   [_ _] {:core-async/out-chan output-ch})
@@ -121,7 +114,7 @@
 
 (def segments (take-segments! output-ch))
 
-(prn segments)
+(prn (count segments))
 
 (doseq [peer v-peers]
   ((:shutdown-fn peer)))
