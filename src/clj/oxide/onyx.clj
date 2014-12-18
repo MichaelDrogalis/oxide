@@ -1,20 +1,46 @@
 (ns oxide.onyx
   (:require [clojure.core.async :refer [chan <!!]]
             [com.stuartsierra.component :as component]
+            [datomic.api :as d]
             [onyx.peer.task-lifecycle-extensions :as l-ext]
             [onyx.system :refer [onyx-development-env]]
             [onyx.plugin.core-async :refer [take-segments!]]
+            [onyx.plugin.datomic]
             [onyx.plugin.sql]
             [onyx.api]
+            [oxide.onyx.datomic :as oxide-datomic]
             [oxide.onyx.impl]))
 
+(def id (java.util.UUID/randomUUID))
+
 (def output-ch (chan 1000))
+
+(def datomic-uri (str "datomic:mem://" (java.util.UUID/randomUUID)))
+
+(oxide-datomic/set-up-output-database datomic-uri)
+
+(def env-config
+  {:hornetq/mode :vm
+   :hornetq/server? true
+   :hornetq.server/type :vm
+   :zookeeper/address "127.0.0.1:2185"
+   :zookeeper/server? true
+   :zookeeper.server/port 2185
+   :onyx/id id})
+
+(def peer-config
+  {:hornetq/mode :vm
+   :zookeeper/address "127.0.0.1:2185"   
+   :onyx/id id
+   :onyx.peer/inbox-capacity 1000
+   :onyx.peer/outbox-capacity 1000
+   :onyx.peer/job-scheduler :onyx.job-scheduler/round-robin})
 
 (def workflow
   [[:partition-keys :read-rows]
    [:read-rows :filter-by-city]
    [:filter-by-city :filter-by-rating]
-   [:filter-by-rating :out]])
+   [:filter-by-rating :datomic-out]])
 
 (def catalog
   [{:onyx/name :partition-keys
@@ -71,36 +97,27 @@
     :onyx/batch-size 1000
     :onyx/doc "Only emit entities that at least as good as this rating"}
 
-   {:onyx/name :out
+   {:onyx/name :core-async-out
     :onyx/ident :core.async/write-to-chan
     :onyx/type :output
     :onyx/medium :core.async
     :onyx/consumption :concurrent
     :onyx/batch-size 1000
     :onyx/max-peers 1
-    :onyx/doc "Writes segments to a core.async channel"}])
+    :onyx/doc "Writes segments to a core.async channel"}
+
+   {:onyx/name :datomic-out
+    :onyx/ident :datomic/commit-tx
+    :onyx/type :output
+    :onyx/medium :datomic
+    :onyx/consumption :concurrent
+    :datomic/uri datomic-uri
+    :datomic/partition :oxide
+    :onyx/batch-size 1000
+    :onyx/doc "Transacts :datoms to storage"}])
 
 (defmethod l-ext/inject-lifecycle-resources :out
   [_ _] {:core-async/out-chan output-ch})
-
-(def id (java.util.UUID/randomUUID))
-
-(def env-config
-  {:hornetq/mode :vm
-   :hornetq/server? true
-   :hornetq.server/type :vm
-   :zookeeper/address "127.0.0.1:2185"
-   :zookeeper/server? true
-   :zookeeper.server/port 2185
-   :onyx/id id})
-
-(def peer-config
-  {:hornetq/mode :vm
-   :zookeeper/address "127.0.0.1:2185"   
-   :onyx/id id
-   :onyx.peer/inbox-capacity 1000
-   :onyx.peer/outbox-capacity 1000
-   :onyx.peer/job-scheduler :onyx.job-scheduler/round-robin})
 
 (def dev (onyx-development-env env-config))
 
@@ -112,12 +129,9 @@
  peer-config {:catalog catalog :workflow workflow
               :task-scheduler :onyx.task-scheduler/round-robin})
 
-(def segments (take-segments! output-ch))
-
-(prn (count segments))
-
 (doseq [peer v-peers]
   ((:shutdown-fn peer)))
 
 (component/stop env)
+
 

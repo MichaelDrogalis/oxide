@@ -9,6 +9,7 @@
                  [org.clojure/java.jdbc "0.3.6"]
                  [com.mdrogalis/onyx "0.5.0-SNAPSHOT"]
                  [com.mdrogalis/onyx-core-async "0.5.0-SNAPSHOT"]
+                 [com.mdrogalis/onyx-datomic "0.5.0-SNAPSHOT"]
                  [com.mdrogalis/onyx-sql "0.5.0-SNAPSHOT"]
                  [cheshire "5.4.0"]
                  [mysql/mysql-connector-java "5.1.6"]
