@@ -7,7 +7,11 @@
             [om-bootstrap.random :as r]
             [om-bootstrap.input :as i]
             [om-tools.core :refer-macros [defcomponent]]
-            [om-tools.dom :as d :include-macros true]))
+            [om-tools.dom :as d :include-macros true]
+            [cljs.core.async :as async :refer (<! >! put! chan)]
+            [cljs-uuid.core :as uuid]
+            [taoensso.sente  :as sente :refer (cb-success?)])
+  (:require-macros [cljs.core.async.macros :as asyncm :refer (go go-loop)]))
 
 (enable-console-print!)
 
@@ -15,6 +19,13 @@
 
 (defonce app-state (atom {:inputs []
                           :current-expression default-expr}))
+
+(let [{:keys [chsk ch-recv send-fn state]}
+      (sente/make-channel-socket! "/chsk" {:type :auto})]
+  (def chsk       chsk)
+  (def ch-chsk    ch-recv)
+  (def chsk-send! send-fn)
+  (def chsk-state state))
 
 (defcomponent expression-editor [data owner]
   (render-state [_ _] (d/pre {:id "editor"} ""))
@@ -48,7 +59,9 @@
                 (b/button {:bs-style "primary"
                            :on-click
                            (fn [e]
-                             (om/transact! data (fn [a] (assoc a :inputs (conj (:inputs a) (:current-expression @data))))))} 
+                             (let [expr (:current-expression @data)]
+                               (om/transact! data (fn [a] (assoc a :inputs (conj (:inputs a) expr))))
+                               (chsk-send! [:oxide.client/repl {:expr expr}])))}
                           "Go!")))
 
 (defn main []

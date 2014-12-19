@@ -26,6 +26,7 @@
                  [prismatic/om-tools "0.3.6"]
                  [figwheel "0.1.4-SNAPSHOT"]
                  [environ "1.0.0"]
+                 [cljs-uuid "0.0.4"]
                  [com.cemerick/piggieback "0.1.3"]
                  [weasel "0.4.0-SNAPSHOT"]
                  [leiningen "2.5.0"]

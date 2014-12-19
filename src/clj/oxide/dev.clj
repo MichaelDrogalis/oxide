@@ -21,3 +21,6 @@
   (future
     (print "Starting figwheel.\n")
     (lein/-main ["figwheel"])))
+
+;; (start-figwheel)
+

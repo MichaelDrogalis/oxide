@@ -18,6 +18,11 @@
 (deftemplate page
   (io/resource "index.html") [] [:body] (if is-dev? inject-devmode-html identity))
 
+(def ring-defaults-config
+  (assoc-in ring.middleware.defaults/site-defaults
+            [:security :anti-forgery]
+            {:read-token (fn [req] (-> req :params :csrf-token))}))
+
 (defrecord Httpserver [get-or-ws-fn post-fn]
   component/Lifecycle
   (start [{:keys [sente] :as component}]
