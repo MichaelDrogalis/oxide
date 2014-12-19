@@ -45,7 +45,7 @@
    :onyx-env (onyx-development-env env-config)
    :onyx-peers (component/using (peers peer-config n-peers) [:onyx-env])
    :sente (component/using (sente) [:onyx-peers])
-   :http (component/using (new-http-server) [:sente])))
+   :http (component/using (new-http-server peer-config) [:sente])))
 
 (def system nil)
 
