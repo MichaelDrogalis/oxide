@@ -116,8 +116,9 @@
   (thread
    (when-let [x (<!! (:ch-chsk sente))]
      (when (= (:id x) :oxide.client/repl)
-       (let [expr (:expr (:?data x))]
-         (prn (submit-onyx-job peer-config))))
+       (let [expr (:expr (:?data x))
+             job-id (submit-onyx-job peer-config)]
+         (onyx.api/await-job-completion peer-config job-id)))
      (recur))))
 
 (defrecord Httpserver [peer-config]
