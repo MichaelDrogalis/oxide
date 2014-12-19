@@ -11,6 +11,7 @@
                  [com.mdrogalis/onyx-core-async "0.5.0-SNAPSHOT"]
                  [com.mdrogalis/onyx-datomic "0.5.0-SNAPSHOT"]
                  [com.mdrogalis/onyx-sql "0.5.0-SNAPSHOT"]
+                 [instaparse "1.3.5"]
                  [cheshire "5.4.0"]
                  [mysql/mysql-connector-java "5.1.6"]
                  [racehub/om-bootstrap "0.3.2"]
