@@ -1,9 +1,11 @@
-(ns oxide.server
+(ns oxide.system
   (:require [clojure.java.io :as io]
             [clojure.tools.namespace.repl :refer [refresh]]
             [com.stuartsierra.component :as component]
             [oxide.dev :refer [is-dev? inject-devmode-html browser-repl start-figwheel]]
             [oxide.onyx.peers :refer [peers]]
+            [oxide.http.sente :refer [sente]]
+            [oxide.http.server :refer [new-http-server]]
             [onyx.system :refer [onyx-development-env]]
             [compojure.core :refer [GET defroutes]]
             [compojure.route :refer [resources]]
@@ -12,32 +14,6 @@
             [ring.middleware.reload :as reload]
             [environ.core :refer [env]]
             [ring.adapter.jetty :refer [run-jetty]]))
-
-(deftemplate page
-  (io/resource "index.html") [] [:body] (if is-dev? inject-devmode-html identity))
-
-(defroutes routes
-  (resources "/")
-  (resources "/react" {:root "react"})
-  (GET "/*" req (page)))
-
-(def http-handler
-  (if is-dev?
-    (reload/wrap-reload (api #'routes))
-    (api routes)))
-
-(defn run [& [port]]
-  (defonce ^:private server
-    (do
-      (if is-dev? (start-figwheel))
-      (let [port (Integer. (or port (env :port) 10555))]
-        (print "Starting web server on port" port ".\n")
-        (run-jetty http-handler {:port port
-                          :join? false}))))
-  server)
-
-;; (run)
-;; (browser-repl)
 
 (def id (java.util.UUID/randomUUID))
 
@@ -67,7 +43,9 @@
 (defn get-system []
   (component/system-map
    :onyx-env (onyx-development-env env-config)
-   :onyx-peers (component/using (peers peer-config n-peers) [:onyx-env])))
+   :onyx-peers (component/using (peers peer-config n-peers) [:onyx-env])
+   :sente (component/using (sente) [:onyx-peers])
+   :http (component/using (new-http-server) [:sente])))
 
 (def system nil)
 
@@ -89,5 +67,5 @@
   (refresh :after 'user/go))
 
 (defn -main [& [port]]
-  (run port))
+  (go))
 

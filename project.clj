@@ -19,6 +19,7 @@
                  [racehub/om-bootstrap "0.3.2"]
                  [honeysql "0.4.3"]
                  [ring "1.3.1"]
+                 [ring/ring-defaults  "0.1.1"]
                  [compojure "1.2.0"]
                  [enlive "1.1.5"]
                  [om "0.7.3"]
@@ -42,7 +43,7 @@
                                         :externs       ["react/externs/react.js"]
                                         :optimizations :none
                                         :pretty-print  true}}}}
-  :profiles {:dev {:repl-options {:init-ns oxide.server
+  :profiles {:dev {:repl-options {:init-ns oxide.system
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                    :plugins [[lein-figwheel "0.1.4-SNAPSHOT"]]
                    :figwheel {:http-server-root "public"
