@@ -7,6 +7,7 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/clojurescript "0.0-2371" :scope "provided"]
                  [org.clojure/java.jdbc "0.3.6"]
+                 [org.clojure/core.match "0.2.2"]
                  [com.mdrogalis/onyx "0.5.0-SNAPSHOT"]
                  [com.mdrogalis/onyx-core-async "0.5.0-SNAPSHOT"]
                  [com.mdrogalis/onyx-datomic "0.5.0-SNAPSHOT"]

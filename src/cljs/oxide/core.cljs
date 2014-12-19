@@ -27,6 +27,24 @@
   (def chsk-send! send-fn)
   (def chsk-state state))
 
+(go
+ (loop []
+   (let [x (<! ch-chsk)]
+;;     (prn x)
+     (recur))))
+
+(defn handle-payload [[msg-type contents]]
+  (match [msg-type contents]
+         [:job-complete msg] (println "Job is done!")
+         :else (println "Couldn't match payload")))
+
+(defn event-handler [{:keys [event]}]
+  (match event
+         [:chsk/recv payload] (handle-payload payload)
+         :else (print "Unmatched event: %s" event)))
+
+(sente/start-chsk-router! ch-chsk event-handler)
+
 (defcomponent expression-editor [data owner]
   (render-state [_ _] (d/pre {:id "editor"} ""))
   (did-mount [_]
