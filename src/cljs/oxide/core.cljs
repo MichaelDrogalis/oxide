@@ -27,21 +27,12 @@
   (def chsk-send! send-fn)
   (def chsk-state state))
 
-(go
- (loop []
-   (let [x (<! ch-chsk)]
-;;     (prn x)
-     (recur))))
-
-(defn handle-payload [[msg-type contents]]
-  (match [msg-type contents]
-         [:job-complete msg] (println "Job is done!")
-         :else (println "Couldn't match payload")))
+(defn handle-payload [contents]
+  (prn contents))
 
 (defn event-handler [{:keys [event]}]
-  (match event
-         [:chsk/recv payload] (handle-payload payload)
-         :else (print "Unmatched event: %s" event)))
+  (when (= (first event) :chsk/recv)
+    (handle-payload (second event))))
 
 (sente/start-chsk-router! ch-chsk event-handler)
 
@@ -77,9 +68,10 @@
                 (b/button {:bs-style "primary"
                            :on-click
                            (fn [e]
-                             (let [expr (:current-expression @data)]
-                               (om/transact! data (fn [a] (assoc a :inputs (conj (:inputs a) expr))))
-                               (chsk-send! [:oxide.client/repl {:expr expr}])))}
+                             (let [expr (:current-expression @data)
+                                   result (om/transact! data (fn [a] (assoc a :inputs (conj (:inputs a) expr))))
+                                   n (dec (count (:inputs @result)))]
+                               (chsk-send! [:oxide.client/repl {:expr expr :n n}])))}
                           "Go!")))
 
 (defn main []

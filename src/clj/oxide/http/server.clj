@@ -11,8 +11,8 @@
             [ring.middleware.session :refer [wrap-session]]
             [ring.middleware.defaults]
             [ring.util.response :refer [resource-response response content-type]]
-            [compojure.core     :as comp :refer (defroutes GET POST)]
-            [compojure.route    :as route]
+            [compojure.core :as comp :refer (defroutes GET POST)]
+            [compojure.route :as route]
             [com.stuartsierra.component :as component]
             [datomic.api :as d]
             [onyx.peer.task-lifecycle-extensions :as l-ext]
@@ -114,15 +114,16 @@
 
 (defn launch-event-handler [sente peer-config]
   (thread
-   (when-let [x (<!! (:ch-chsk sente))]
-     (when (= (:id x) :oxide.client/repl)
-       (let [expr (:expr (:?data x))
-             job-id (submit-onyx-job peer-config)]
-         (prn "Launched")
-;;         (onyx.api/await-job-completion peer-config job-id)
-         (prn "Done")
-         ((:chsk-send! sente) (:client-uuid x) "Done!")))
-     (recur))))
+   (loop []
+     (when-let [x (<!! (:ch-chsk sente))]
+       (when (= (:id x) :oxide.client/repl)
+         (let [expr (:expr (:?data x))
+               n (:n (:?data x))
+               job-id (submit-onyx-job peer-config)
+               uid (get-in x [:ring-req :cookies "ring-session" :value])]
+           (onyx.api/await-job-completion peer-config job-id)
+           ((:chsk-send! sente) uid [:job/complete {:job-id job-id :n n}])))
+       (recur)))))
 
 (defrecord Httpserver [peer-config]
   component/Lifecycle
