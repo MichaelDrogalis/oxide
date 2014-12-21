@@ -77,24 +77,24 @@
                   (fn [k input]
                     (r/well
                      {}
-                     (d/div {:class "text-right"} (d/small (str "#" k)))
+                     (d/div {:class "text-right"} (d/small (d/a {:href "#"} (str "#" k))))
                      (d/br)
                      (d/pre input)
                      (d/pre
                       (if-let [output (get-in data [:outputs k])]
                         (table {:striped? true :bordered? true :condensed? true :responsive? true :hover? false}
-                         (d/thead
-                          (d/tr
-                           (d/th "Business Name")
-                           (d/th "Address")
-                           (d/th "Stars")))
-                         (d/tbody
-                          (for [row output]
-                            (do
-                              (d/tr
-                               (d/td (abbreviate (:business_name row) 35))
-                               (d/td (abbreviate (:address row) 45))
-                               (d/td (:stars row)))))))
+                               (d/thead
+                                (d/tr
+                                 (d/th "Business Name")
+                                 (d/th "Address")
+                                 (d/th "Stars")))
+                               (d/tbody
+                                (for [row output]
+                                  (do
+                                    (d/tr
+                                     (d/td (abbreviate (:business_name row) 35))
+                                     (d/td (abbreviate (:address row) 45))
+                                     (d/td (:stars row)))))))
                         "Pending..."))))
                   (:inputs data)))))
 
