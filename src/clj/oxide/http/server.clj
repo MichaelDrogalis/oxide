@@ -32,9 +32,9 @@
 
 (defn workflow []
   [[:partition-keys :read-rows]
-   [:read-rows :filter-by-city]
-   [:filter-by-city :filter-by-rating]
-   [:filter-by-rating :group-by-stars]
+   [:read-rows :group-by-stars]
+;;   [:filter-by-city :group-by-stars]
+;;   [:filter-by-rating :group-by-stars]
    [:group-by-stars :datomic-out]])
 
 (defn catalog [datomic-uri]
