@@ -62,7 +62,6 @@
     :onyx/fn :onyx.plugin.sql/read-rows
     :onyx/type :function
     :onyx/consumption :concurrent
-    :onyx/batch-size 1000
     :sql/classname "com.mysql.jdbc.Driver"
     :sql/subprotocol "mysql"
     :sql/subname "//127.0.0.1:3306/oxide"
@@ -70,6 +69,7 @@
     :sql/password ""
     :sql/table :yelp_data_set
     :sql/id :id
+    :onyx/batch-size 1000
     :onyx/doc "Reads rows of a SQL table bounded by a key range"}
 
    {:onyx/name :filter-by-city

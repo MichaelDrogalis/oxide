@@ -60,6 +60,14 @@
                     (fn [e]
                       (om/transact! data (fn [a] (assoc a :current-expression (.getValue editor)))))))))
 
+(defn abbreviate
+  ([x] (abbreviate x 25))
+  ([x n]
+     (let [max-len n]
+       (if (<= (count x) max-len)
+         x
+         (str (apply str (take max-len x)) "...")))))
+
 (defcomponent exchange [data owner]
   (did-update [_ _ _]
              (.scrollTo js/window 0 (.-scrollHeight (.-body js/document))))
@@ -74,18 +82,19 @@
                      (d/pre input)
                      (d/pre
                       (if-let [output (get-in data [:outputs k])]
-                        (table {:striped? true :bordered? true :condensed? true :hover? false}
+                        (table {:striped? true :bordered? true :condensed? true :responsive? true :hover? false}
                          (d/thead
                           (d/tr
                            (d/th "Business Name")
                            (d/th "Address")
-                           (d/th "Stars")) 
-                          (d/body
-                           (for [row output]
-                             (d/tr
-                              (d/td (:business_name row))
-                              (d/td (:address row))
-                              (d/td (:stars row)))))))
+                           (d/th "Stars")))
+                         (d/tbody
+                          (for [row output]
+                            (do
+                              (d/tr
+                               (d/td (abbreviate (:business_name row) 35))
+                               (d/td (abbreviate (:address row) 45))
+                               (d/td (:stars row)))))))
                         "Pending..."))))
                   (:inputs data)))))
 
@@ -126,7 +135,7 @@
              {}
              (g/col {:xs 10 :md 10} (p/panel {:header (d/h4 "interactive repl")}
                                              (g/row {}
-                                                    (g/col {:md 10}
+                                                    (g/col {:md 12}
                                                            (om/build exchange app {})
                                                            (om/build expression-editor app {})
                                                            (om/build submit app {}))))))))))))

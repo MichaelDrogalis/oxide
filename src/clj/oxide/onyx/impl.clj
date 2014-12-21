@@ -1,11 +1,15 @@
 (ns oxide.onyx.impl
   (:require [clojure.string :refer [split]]))
 
-(defn strip-nil-keys [datom]
-  (into {} (filter (fn [[a b]] (identity b)) datom)))
+(defn strip-nil-keys [x]
+  (into {} (filter (fn [[a b]] (identity b)) x)))
 
-(defn filter-by-city [city state {:keys [address] :as segment}]
-  (let [this-city (last (split (first (split address #",")) #" "))
+(defn normalize-address [x]
+  (update-in x [:address] clojure.string/replace "\n" " "))
+
+(defn filter-by-city [city state segment]
+  (let [{:keys [address] :as segment} (normalize-address segment)
+        this-city (last (split (first (split address #",")) #" "))
         this-state (second (split (last (split address #",")) #" "))]
     (if (and (= city this-city) (= state this-state))
       (strip-nil-keys segment)
