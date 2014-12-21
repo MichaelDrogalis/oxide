@@ -6,6 +6,7 @@
             [om-bootstrap.button :as b]
             [om-bootstrap.random :as r]
             [om-bootstrap.input :as i]
+            [om-bootstrap.table :refer [table]]
             [om-tools.core :refer-macros [defcomponent]]
             [om-tools.dom :as d :include-macros true]
             [cljs.core.async :as async :refer (<! >! put! chan)]
@@ -15,9 +16,10 @@
 
 (enable-console-print!)
 
-(def default-expr "LocateOnMap [Within [DataSet(\"restaurants\"), \"Baltimore, MD\"]]")
+(def default-expr "Table [Within [DataSet(\"restaurants\"), \"Baltimore, MD\"]]")
 
 (defonce app-state (atom {:inputs []
+                          :outputs {}
                           :current-expression default-expr}))
 
 (let [{:keys [chsk ch-recv send-fn state]}
@@ -29,13 +31,10 @@
 
 (defn handle-job-complete [contents]
   (println (str (:job-id contents) "is done"))
-  (prn contents)
-  (chsk-send! [:job/output {:datomic-uri (:datomic-uri contents)}])
-  (println "Sent!"))
+  (chsk-send! [:job/output {:datomic-uri (:datomic-uri contents) :n (:n contents)}]))
 
 (defn handle-output [contents]
-  (prn "Got contents")
-  (prn contents))
+  (swap! app-state assoc-in [:outputs (:n contents)] (:payload contents)))
 
 (defn handle-payload [[event-type contents]]
   (cond (= event-type :job/complete)
@@ -73,7 +72,21 @@
                      (d/div {:class "text-right"} (d/small (str "#" k)))
                      (d/br)
                      (d/pre input)
-                     (d/pre "Your output here...")))
+                     (d/pre
+                      (if-let [output (get-in data [:outputs k])]
+                        (table {:striped? true :bordered? true :condensed? true :hover? false}
+                         (d/thead
+                          (d/tr
+                           (d/th "Business Name")
+                           (d/th "Address")
+                           (d/th "Stars")) 
+                          (d/body
+                           (for [row output]
+                             (d/tr
+                              (d/td (:business_name row))
+                              (d/td (:address row))
+                              (d/td (:stars row)))))))
+                        "Pending..."))))
                   (:inputs data)))))
 
 (defcomponent submit [data owner]

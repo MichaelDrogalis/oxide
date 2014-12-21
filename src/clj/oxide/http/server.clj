@@ -131,8 +131,8 @@
           results (d/q query db)
           entities (map (partial into {}) (map (partial d/entity db) (map first results)))
           uid (get-in event [:ring-req :cookies "ring-session" :value])]
-      (prn "Sending!")
-      ((:chsk-send! sente) uid [:job/output-payload {:payload entities}]))
+      ((:chsk-send! sente) uid [:job/output-payload {:payload entities
+                                                     :n (:n (:?data event))}]))
     (catch Exception e
       (.printStacktrace e))))
 
