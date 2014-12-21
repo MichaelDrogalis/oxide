@@ -69,7 +69,7 @@
     :sql/password ""
     :sql/table :yelp_data_set
     :sql/id :id
-    :onyx/batch-size 1000
+    :onyx/batch-size 5
     :onyx/doc "Reads rows of a SQL table bounded by a key range"}
 
    {:onyx/name :filter-by-city
