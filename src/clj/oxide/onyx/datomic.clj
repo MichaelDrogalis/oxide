@@ -118,6 +118,12 @@
     :db/ident :categories
     :db/valueType :db.type/string
     :db/cardinality :db.cardinality/one
+    :db.install/_attribute :db.part/db}
+
+   {:db/id #db/id [:db.part/db]
+    :db/ident :star-counts
+    :db/valueType :db.type/string
+    :db/cardinality :db.cardinality/one
     :db.install/_attribute :db.part/db}])
 
 (defn set-up-output-database [db-uri]

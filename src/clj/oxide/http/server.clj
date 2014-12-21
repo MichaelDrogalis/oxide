@@ -3,11 +3,9 @@
             [oxide.dev :refer [is-dev? inject-devmode-html browser-repl start-figwheel]]
             [org.httpkit.server :as http-kit-server]
             [clojure.java.io :as io]
-            [compojure.core :refer [GET defroutes]]
             [compojure.route :refer [resources]]
             [compojure.handler :refer [api]]
             [net.cgrand.enlive-html :refer [deftemplate]]
-            [ring.middleware.reload :as reload]
             [ring.middleware.session :refer [wrap-session]]
             [ring.middleware.defaults]
             [ring.util.response :refer [resource-response response content-type]]
@@ -36,7 +34,8 @@
   [[:partition-keys :read-rows]
    [:read-rows :filter-by-city]
    [:filter-by-city :filter-by-rating]
-   [:filter-by-rating :datomic-out]])
+   [:filter-by-rating :group-by-stars]
+   [:group-by-stars :datomic-out]])
 
 (defn catalog [datomic-uri]
   [{:onyx/name :partition-keys
@@ -92,6 +91,15 @@
     :onyx/params [:oxide/min-rating]
     :onyx/batch-size 1000
     :onyx/doc "Only emit entities that at least as good as this rating"}
+
+   {:onyx/name :group-by-stars
+    :onyx/ident :oxide/group-by-stars
+    :onyx/fn :oxide.onyx.impl/group-by-stars
+    :onyx/type :function
+    :onyx/consumption :concurrent
+    :onyx/max-peers 1
+    :onyx/batch-size 1000
+    :onyx/doc "Maintain local state, summing the number of businesses with each star level"}
 
    {:onyx/name :datomic-out
     :onyx/ident :datomic/commit-tx

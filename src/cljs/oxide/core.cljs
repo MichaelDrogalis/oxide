@@ -1,5 +1,6 @@
 (ns oxide.core
-  (:require [om.core :as om :include-macros true]
+  (:require [cljs.reader :refer [read-string]]
+            [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]
             [om-bootstrap.panel :as p]
             [om-bootstrap.grid :as g]
@@ -68,9 +69,46 @@
          x
          (str (apply str (take max-len x)) "...")))))
 
+(defn table-output [output]
+  (table {:striped? true :bordered? true :condensed? true :responsive? true :hover? false}
+         (d/thead
+          (d/tr
+           (d/th "Business Name")
+           (d/th "Address")
+           (d/th "Stars")))
+         (d/tbody
+          (for [row output]
+            (do
+              (d/tr
+               (d/td (abbreviate (:business_name row) 35))
+               (d/td (abbreviate (:address row) 45))
+               (d/td (:stars row))))))))
+
+
+;; ({:id 0, :star-counts "{5M 2162, 4M 3087}"})
+
+(defcomponent histogram [data owner]
+  (render-state [_ _] (d/div {:id "histogram"}))
+  (did-mount [_]
+             (let [stars (read-string (:star-counts (first (:output data))))
+                   chart (Highcharts/Chart.
+                          (clj->js {:chart {:renderTo "histogram"
+                                            :type "column"}
+                                    :title {:text "Histogram of Yelp Businesses Star Rating"}
+                                    :xAxis {:categories ["1" "2" "3" "4" "5"]}
+                                    :plotOptions {:column {:groupPadding 0
+                                                           :pointPadding 0
+                                                           :borderWidth 0}}
+                                    :series [{:data [(get stars 1)
+                                                     (get stars 2)
+                                                     (get stars 3)
+                                                     (get stars 4)
+                                                     (get stars 5)]
+                                              :name "Number of businesses"}]}))])))
+
 (defcomponent exchange [data owner]
   (did-update [_ _ _]
-             (.scrollTo js/window 0 (.-scrollHeight (.-body js/document))))
+              (.scrollTo js/window 0 (.-scrollHeight (.-body js/document))))
   (render-state [_ _]
                 (d/div
                  (map-indexed
@@ -82,19 +120,7 @@
                      (d/pre input)
                      (d/pre
                       (if-let [output (get-in data [:outputs k])]
-                        (table {:striped? true :bordered? true :condensed? true :responsive? true :hover? false}
-                               (d/thead
-                                (d/tr
-                                 (d/th "Business Name")
-                                 (d/th "Address")
-                                 (d/th "Stars")))
-                               (d/tbody
-                                (for [row output]
-                                  (do
-                                    (d/tr
-                                     (d/td (abbreviate (:business_name row) 35))
-                                     (d/td (abbreviate (:address row) 45))
-                                     (d/td (:stars row)))))))
+                        (om/build histogram (assoc data :output output) {})
                         "Pending..."))))
                   (:inputs data)))))
 
