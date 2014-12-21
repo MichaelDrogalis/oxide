@@ -27,8 +27,21 @@
   (def chsk-send! send-fn)
   (def chsk-state state))
 
-(defn handle-payload [contents]
+(defn handle-job-complete [contents]
+  (println (str (:job-id contents) "is done"))
+  (prn contents)
+  (chsk-send! [:job/output {:datomic-uri (:datomic-uri contents)}])
+  (println "Sent!"))
+
+(defn handle-output [contents]
+  (prn "Got contents")
   (prn contents))
+
+(defn handle-payload [[event-type contents]]
+  (cond (= event-type :job/complete)
+        (handle-job-complete contents)
+        (= event-type :job/output-payload)
+        (handle-output contents)))
 
 (defn event-handler [{:keys [event]}]
   (when (= (first event) :chsk/recv)
@@ -71,7 +84,7 @@
                              (let [expr (:current-expression @data)
                                    result (om/transact! data (fn [a] (assoc a :inputs (conj (:inputs a) expr))))
                                    n (dec (count (:inputs @result)))]
-                               (chsk-send! [:oxide.client/repl {:expr expr :n n}])))}
+                               (chsk-send! [:job/submit {:expr expr :n n}])))}
                           "Go!")))
 
 (defn main []

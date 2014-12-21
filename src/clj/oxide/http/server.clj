@@ -106,23 +106,45 @@
 (defn submit-onyx-job [peer-config]
   (let [datomic-uri (str "datomic:mem://" (java.util.UUID/randomUUID))]
     (oxide-datomic/set-up-output-database datomic-uri)
-    (onyx.api/submit-job
-     peer-config
-     {:catalog (catalog datomic-uri)
-      :workflow (workflow)
-      :task-scheduler :onyx.task-scheduler/round-robin})))
+    {:datomic-uri datomic-uri
+     :job-id
+     (onyx.api/submit-job
+      peer-config
+      {:catalog (catalog datomic-uri)
+       :workflow (workflow)
+       :task-scheduler :onyx.task-scheduler/round-robin})}))
+
+(defn process-submit-job [sente event peer-config]
+  (let [expr (:expr (:?data event))
+        n (:n (:?data event))
+        {:keys [job-id datomic-uri]} (submit-onyx-job peer-config)
+        uid (get-in event [:ring-req :cookies "ring-session" :value])]
+    (onyx.api/await-job-completion peer-config job-id)
+    ((:chsk-send! sente) uid [:job/complete {:job-id job-id :n n :datomic-uri datomic-uri}])))
+
+(defn process-job-output [sente event]
+  (try
+    (let [db-uri (:datomic-uri (:?data event))
+          conn (d/connect db-uri)
+          db (d/db conn)
+          query '[:find ?e :where [?e :id]]
+          results (d/q query db)
+          entities (map (partial into {}) (map (partial d/entity db) (map first results)))
+          uid (get-in event [:ring-req :cookies "ring-session" :value])]
+      (prn "Sending!")
+      ((:chsk-send! sente) uid [:job/output-payload {:payload entities}]))
+    (catch Exception e
+      (.printStacktrace e))))
 
 (defn launch-event-handler [sente peer-config]
   (thread
    (loop []
-     (when-let [x (<!! (:ch-chsk sente))]
-       (when (= (:id x) :oxide.client/repl)
-         (let [expr (:expr (:?data x))
-               n (:n (:?data x))
-               job-id (submit-onyx-job peer-config)
-               uid (get-in x [:ring-req :cookies "ring-session" :value])]
-           (onyx.api/await-job-completion peer-config job-id)
-           ((:chsk-send! sente) uid [:job/complete {:job-id job-id :n n}])))
+     (when-let [event (<!! (:ch-chsk sente))]
+       (prn "Got " (:id event))
+       (cond (= (:id event) :job/submit)
+             (thread (process-submit-job sente event peer-config))
+             (= (:id event) :job/output)
+             (thread (process-job-output sente event)))
        (recur)))))
 
 (defrecord Httpserver [peer-config]
