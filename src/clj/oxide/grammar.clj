@@ -12,8 +12,8 @@
     Function = 'within-location' | 'minimum-popularity' | 'group-by-popularity'
     DataSet = 'data-set' Whitespace+ String
     String = '\"' (#'[a-zA-Z]' | Whitespace+)+ '\"'
-    Constant = 'x'
+    Constant = String | #'[0-9]'+
     Whitespace = #'\\s+'"))
 
-(oxide-grammar "(histogram (group-by-popularity (minimum-popularity (within-location (data-set \"Yelp Businesses\") x))))")
+(oxide-grammar "(histogram (group-by-popularity (minimum-popularity (within-location (data-set \"Yelp Businesses\") 3))))")
 
