@@ -35,5 +35,65 @@
 
 (def data-set (rest (nth (second tree-4) 2)))
 
-(clojure.pprint/pprint data-set)
+(defmulti compile-workflow
+  (fn [[node body] workflow]
+    node))
+
+(defmethod compile-workflow :OxideForm
+  [[node body] workflow]
+  (compile-workflow body workflow))
+
+(defmethod compile-workflow :FullExpr
+  [[node visual-f more] workflow]
+  (let [f (compile-workflow visual-f workflow)]
+    (compile-workflow more (conj workflow [nil (keyword f)]))))
+
+(defmethod compile-workflow :VisualFn
+  [[node body] workflow]
+  body)
+
+(defmethod compile-workflow :Form
+  [[node body] workflow]
+  (compile-workflow body workflow))
+
+(defmethod compile-workflow :PartialExpr
+  [[node function & args] workflow]
+  (let [f (compile-workflow function workflow)
+        flow
+        (if (nil? (first (last workflow)))
+          (vec (conj (butlast workflow) [f (last (last workflow))]))
+          (vec (conj workflow [f (first (last workflow))] [nil f])))]
+    (reduce (fn [wf arg] (compile-workflow arg wf)) flow args)))
+
+(defmethod compile-workflow :Function
+  [[node body] workflow]
+  (keyword body))
+
+(defmethod compile-workflow :Arg
+  [[node body] workflow]
+  (compile-workflow body workflow))
+
+(defmethod compile-workflow :DataSet
+  [[node body ds-name] workflow]
+  (let [dataset-name (compile-workflow ds-name workflow)]
+    (vec (conj [[:input (ffirst workflow)]] workflow))))
+
+(defmethod compile-workflow :String
+  [[node & body] workflow]
+  (apply str (map (fn [x] (compile-workflow x workflow)) body)))
+
+(defmethod compile-workflow :Whitespace
+  [[node & body] workflow]
+  " ")
+
+(defmethod compile-workflow :Constant
+  [[node body] workflow]
+  workflow)
+
+(defmethod compile-workflow :default
+  [leaf workflow]
+  leaf)
+
+(compile-workflow parsed [])
+
 
