@@ -15,7 +15,7 @@
     Constant = String | #'[0-9]'+
     Whitespace = #'\\s+'"))
 
-(def parsed (oxide-grammar "(histogram (group-by-popularity (minimum-popularity (within-location (data-set \"Yelp Businesses\") 3))))"))
+(def parsed (oxide-grammar "(histogram (group-by-popularity (minimum-popularity (within-location (data-set \"Yelp Businesses\") \"Phoenix, AZ\") 3)))"))
 
 (def visual-fn (second (second (second parsed))))
 
@@ -75,7 +75,9 @@
 (defmethod compile-workflow :DataSet
   [[node body ds-name] workflow]
   (let [dataset-name (compile-workflow ds-name workflow)]
-    (vec (conj [[:input (ffirst workflow)]] workflow))))
+    (if (ffirst workflow)
+      (vec (conj [[:input (ffirst workflow)]] workflow))
+      (vec (concat [[:input (last (first workflow))]] (rest workflow))))))
 
 (defmethod compile-workflow :String
   [[node & body] workflow]
@@ -94,5 +96,4 @@
   leaf)
 
 (compile-workflow parsed [])
-
 
