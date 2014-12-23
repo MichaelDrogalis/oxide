@@ -17,7 +17,7 @@
 
 (def parsed (oxide-grammar "(histogram (group-by-popularity (minimum-popularity (within-location (data-set \"Yelp Businesses\")) 3)))"))
 
-(defn catalog [datomic-uri]
+(def base-catalog
   [{:onyx/name :partition-keys
     :onyx/ident :sql/partition-keys
     :onyx/type :input
@@ -86,10 +86,13 @@
     :onyx/type :output
     :onyx/medium :datomic
     :onyx/consumption :concurrent
-    :datomic/uri datomic-uri
+;;    :datomic/uri datomic-uri
     :datomic/partition :oxide
     :onyx/batch-size 1000
     :onyx/doc "Transacts :datoms to storage"}])
+
+(defn get-entry [catalog name]
+  (first (filter #(= (:onyx/name %) name) catalog)))
 
 (defmulti compile-onyx-job
   (fn [[node body] job]
@@ -101,12 +104,17 @@
 
 (defmethod compile-onyx-job :FullExpr
   [[node visual-f more] {:keys [workflow] :as job}]
-  (let [f (compile-onyx-job visual-f job)]
-    (compile-onyx-job more (assoc job :workflow [[nil (keyword f)]]))))
+  (let [f (compile-onyx-job visual-f job)
+        j (-> job
+              (assoc :workflow [[nil (keyword f)]])
+              (assoc :catalog [(get-entry base-catalog :partition-keys)
+                               (get-entry base-catalog :read-rows)
+                               (get-entry base-catalog :datomic-out)]))]
+    (compile-onyx-job more j)))
 
 (defmethod compile-onyx-job :VisualFn
   [[node body] {:keys [workflow] :as job}]
-  body)
+  "datomic-out")
 
 (defmethod compile-onyx-job :Form
   [[node body] {:keys [workflow] :as job}]
@@ -136,8 +144,8 @@
     (merge job
            {:workflow
             (if (ffirst workflow)
-              (vec (conj [[:input (ffirst workflow)]] workflow))
-              (vec (concat [[:input (last (first workflow))]] (rest workflow))))})))
+              (vec (concat [[:partition-keys :read-rows] [:read-rows (ffirst workflow)]] workflow))
+              (vec (concat [[:partition-keys :read-rows] [:read-rows (last (first workflow))]] (rest workflow))))})))
 
 (defmethod compile-onyx-job :String
   [[node & body] {:keys [workflow] :as job}]
@@ -155,5 +163,5 @@
   [leaf {:keys [workflow] :as job}]
   leaf)
 
-(compile-onyx-job parsed {:workflow [] :catalog []})
+(clojure.pprint/pprint (compile-onyx-job parsed {:workflow [] :catalog []}))
 
