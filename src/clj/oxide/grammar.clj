@@ -163,16 +163,16 @@
   " ")
 
 (defmethod compile-onyx-job :Constant
-  [[node body] {:keys [workflow opts] :as job}]
+  [[node body] {:keys [workflow catalog opts] :as job}]
   (let [{:keys [k f]} opts
         param (nth (:onyx/params (get-entry base-catalog f)) k)
         compiled-arg (compile-onyx-job body job)
-        position (nth-entry base-catalog f)]
+        position (nth-entry catalog f)]
     (assoc-in job [:catalog position param] compiled-arg)))
 
 (defmethod compile-onyx-job :default
   [leaf {:keys [workflow] :as job}]
   leaf)
 
-(clojure.pprint/pprint (compile-onyx-job parsed {:workflow [] :catalog []}))
+(compile-onyx-job parsed {:workflow [] :catalog []})
 
