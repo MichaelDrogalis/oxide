@@ -15,85 +15,145 @@
     Constant = String | #'[0-9]'+
     Whitespace = #'\\s+'"))
 
-(def parsed (oxide-grammar "(histogram (group-by-popularity (minimum-popularity (within-location (data-set \"Yelp Businesses\") \"Phoenix, AZ\") 3)))"))
+(def parsed (oxide-grammar "(histogram (group-by-popularity (minimum-popularity (within-location (data-set \"Yelp Businesses\")) 3)))"))
 
-(def visual-fn (second (second (second parsed))))
+(defn catalog [datomic-uri]
+  [{:onyx/name :partition-keys
+    :onyx/ident :sql/partition-keys
+    :onyx/type :input
+    :onyx/medium :sql
+    :onyx/consumption :concurrent
+    :onyx/bootstrap? true
+    :sql/classname "com.mysql.jdbc.Driver"
+    :sql/subprotocol "mysql"
+    :sql/subname "//127.0.0.1:3306/oxide"
+    :sql/user "root"
+    :sql/password ""
+    :sql/table :yelp_data_set
+    :sql/id :id
+    :sql/rows-per-segment 1000
+    :onyx/batch-size 1000
+    :onyx/max-peers 1
+    :onyx/doc "Partitions a range of primary keys into subranges"}
 
-(def tree-1 (nth (second parsed) 2))
+   {:onyx/name :read-rows
+    :onyx/ident :sql/read-rows
+    :onyx/fn :onyx.plugin.sql/read-rows
+    :onyx/type :function
+    :onyx/consumption :concurrent
+    :sql/classname "com.mysql.jdbc.Driver"
+    :sql/subprotocol "mysql"
+    :sql/subname "//127.0.0.1:3306/oxide"
+    :sql/user "root"
+    :sql/password ""
+    :sql/table :yelp_data_set
+    :sql/id :id
+    :onyx/batch-size 5
+    :onyx/doc "Reads rows of a SQL table bounded by a key range"}
 
-(def group-by-popularity (second (second (second tree-1))))
+   {:onyx/name :filter-by-city
+    :onyx/ident :oxide/filter-by-city
+    :onyx/fn :oxide.onyx.impl/filter-by-city
+    :onyx/type :function
+    :onyx/consumption :concurrent
+    :oxide/city "Phoenix"
+    :oxide/state "AZ"
+    :onyx/params [:oxide/city :oxide/state]
+    :onyx/batch-size 1000
+    :onyx/doc "Only emit entities that are in this city and state"}
 
-(def tree-2 (second (nth (second tree-1) 2)))
+   {:onyx/name :filter-by-rating
+    :onyx/ident :oxide/filter-by-rating
+    :onyx/fn :oxide.onyx.impl/filter-by-rating
+    :onyx/type :function
+    :onyx/consumption :concurrent
+    :oxide/min-rating 4
+    :onyx/params [:oxide/min-rating]
+    :onyx/batch-size 1000
+    :onyx/doc "Only emit entities that at least as good as this rating"}
 
-(def min-popularity (second (second (second tree-2))))
+   {:onyx/name :group-by-stars
+    :onyx/ident :oxide/group-by-stars
+    :onyx/fn :oxide.onyx.impl/group-by-stars
+    :onyx/type :function
+    :onyx/consumption :concurrent
+    :onyx/max-peers 1
+    :onyx/batch-size 1000
+    :onyx/doc "Maintain local state, summing the number of businesses with each star level"}
 
-(def tree-3 (second (nth (second tree-2) 2)))
+   {:onyx/name :datomic-out
+    :onyx/ident :datomic/commit-tx
+    :onyx/type :output
+    :onyx/medium :datomic
+    :onyx/consumption :concurrent
+    :datomic/uri datomic-uri
+    :datomic/partition :oxide
+    :onyx/batch-size 1000
+    :onyx/doc "Transacts :datoms to storage"}])
 
-(def within-location (second (second (second tree-3))))
-
-(def tree-4 (second (nth (second tree-3) 2)))
-
-(def data-set (rest (nth (second tree-4) 2)))
-
-(defmulti compile-workflow
-  (fn [[node body] workflow]
+(defmulti compile-onyx-job
+  (fn [[node body] job]
     node))
 
-(defmethod compile-workflow :OxideForm
-  [[node body] workflow]
-  (compile-workflow body workflow))
+(defmethod compile-onyx-job :OxideForm
+  [[node body] {:keys [workflow] :as job}]
+  (compile-onyx-job body job))
 
-(defmethod compile-workflow :FullExpr
-  [[node visual-f more] workflow]
-  (let [f (compile-workflow visual-f workflow)]
-    (compile-workflow more [[nil (keyword f)]])))
+(defmethod compile-onyx-job :FullExpr
+  [[node visual-f more] {:keys [workflow] :as job}]
+  (let [f (compile-onyx-job visual-f job)]
+    (compile-onyx-job more (assoc job :workflow [[nil (keyword f)]]))))
 
-(defmethod compile-workflow :VisualFn
-  [[node body] workflow]
+(defmethod compile-onyx-job :VisualFn
+  [[node body] {:keys [workflow] :as job}]
   body)
 
-(defmethod compile-workflow :Form
-  [[node body] workflow]
-  (compile-workflow body workflow))
+(defmethod compile-onyx-job :Form
+  [[node body] {:keys [workflow] :as job}]
+  (compile-onyx-job body job))
 
-(defmethod compile-workflow :PartialExpr
-  [[node function & args] workflow]
-  (let [flow (compile-workflow function workflow)]
-    (reduce (fn [wf arg] (compile-workflow arg wf)) flow args)))
+(defmethod compile-onyx-job :PartialExpr
+  [[node function & args] {:keys [workflow] :as job}]
+  (let [compiled (compile-onyx-job function job)]
+    (reduce (fn [j arg] (compile-onyx-job arg j)) compiled args)))
 
-(defmethod compile-workflow :Function
-  [[node body] workflow]
+(defmethod compile-onyx-job :Function
+  [[node body] {:keys [workflow] :as job}]
   (let [f (keyword body)]
-    (if (nil? (ffirst workflow))
-      (vec (concat [[f (last (first workflow))]] (rest workflow)))
-      (vec (concat [[nil f] [f (ffirst workflow)]] workflow)))))
+    (merge job
+           {:workflow
+            (if (nil? (ffirst workflow))
+              (vec (concat [[f (last (first workflow))]] (rest workflow)))
+              (vec (concat [[nil f] [f (ffirst workflow)]] workflow)))})))
 
-(defmethod compile-workflow :Arg
-  [[node body] workflow]
-  (compile-workflow body workflow))
+(defmethod compile-onyx-job :Arg
+  [[node body] {:keys [workflow] :as job}]
+  (compile-onyx-job body job))
 
-(defmethod compile-workflow :DataSet
-  [[node body ds-name] workflow]
-  (let [dataset-name (compile-workflow ds-name workflow)]
-    (if (ffirst workflow)
-      (vec (conj [[:input (ffirst workflow)]] workflow))
-      (vec (concat [[:input (last (first workflow))]] (rest workflow))))))
+(defmethod compile-onyx-job :DataSet
+  [[node body ds-name] {:keys [workflow] :as job}]
+  (let [dataset-name (compile-onyx-job ds-name job)]
+    (merge job
+           {:workflow
+            (if (ffirst workflow)
+              (vec (conj [[:input (ffirst workflow)]] workflow))
+              (vec (concat [[:input (last (first workflow))]] (rest workflow))))})))
 
-(defmethod compile-workflow :String
-  [[node & body] workflow]
-  (apply str (map (fn [x] (compile-workflow x workflow)) body)))
+(defmethod compile-onyx-job :String
+  [[node & body] {:keys [workflow] :as job}]
+  (apply str (map (fn [x] (compile-onyx-job x job)) body)))
 
-(defmethod compile-workflow :Whitespace
-  [[node & body] workflow]
+(defmethod compile-onyx-job :Whitespace
+  [[node & body] {:keys [workflow] :as job}]
   " ")
 
-(defmethod compile-workflow :Constant
-  [[node body] workflow]
-  workflow)
+(defmethod compile-onyx-job :Constant
+  [[node body] {:keys [workflow] :as job}]
+  job)
 
-(defmethod compile-workflow :default
-  [leaf workflow]
+(defmethod compile-onyx-job :default
+  [leaf {:keys [workflow] :as job}]
   leaf)
 
-(compile-workflow parsed [])
+(compile-onyx-job parsed {:workflow [] :catalog []})
 
