@@ -63,6 +63,18 @@
                     (fn [e]
                       (om/transact! data (fn [a] (assoc a :current-expression (.getValue editor)))))))))
 
+(defcomponent frozen-input [data owner]
+  (render-state [_ _] (d/pre (:input data)))
+  (did-mount [_]
+             (let [editor (.edit js/ace (om/get-node owner))]
+               (.setOptions editor
+                            (clj->js {:maxLines 15}))
+               (.setMode (.getSession editor) "ace/mode/clojure")
+               (.setHighlightActiveLine editor false)
+               (.setHighlightGutterLine editor false)
+               (.setReadOnly editor true)
+               (set! (.-opacity (.-style (.-element (.-$cursorLayer (.-renderer editor))))) 0))))
+
 (defn abbreviate
   ([x] (abbreviate x 25))
   ([x n]
@@ -87,7 +99,7 @@
                (d/td (:stars row))))))))
 
 (defcomponent histogram [data owner]
-  (render-state [_ _] (d/div {:class "histogram"}))
+  (render-state [_ _] (d/div))
   (did-mount [this]
              (let [stars (read-string (:star-counts (first (:output data))))
                    chart (Highcharts/Chart.
@@ -113,12 +125,11 @@
                  (map-indexed
                   (fn [k input]
                     (let [v (get-in data [:visualizations k])]
-                      (prn v)
                       (r/well
                        {}
                        (d/div {:class "text-right"} (d/small (d/a {:href "#"} (str "#" k))))
                        (d/br)
-                       (d/pre input)
+                       (om/build frozen-input (assoc data :input input))
                        (d/pre
                         (if-let [output (get-in data [:outputs k])]
                           (cond (= v "histogram")
