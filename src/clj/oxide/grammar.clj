@@ -51,7 +51,7 @@
     :onyx/batch-size 5
     :onyx/doc "Reads rows of a SQL table bounded by a key range"}
 
-   {:onyx/name :filter-by-city
+   {:onyx/name :within-location
     :onyx/ident :oxide/filter-by-city
     :onyx/fn :oxide.onyx.impl/filter-by-city
     :onyx/type :function
@@ -62,7 +62,7 @@
     :onyx/batch-size 1000
     :onyx/doc "Only emit entities that are in this city and state"}
 
-   {:onyx/name :filter-by-rating
+   {:onyx/name :minimum-popularity
     :onyx/ident :oxide/filter-by-rating
     :onyx/fn :oxide.onyx.impl/filter-by-rating
     :onyx/type :function
@@ -72,7 +72,7 @@
     :onyx/batch-size 1000
     :onyx/doc "Only emit entities that at least as good as this rating"}
 
-   {:onyx/name :group-by-stars
+   {:onyx/name :group-by-popularity
     :onyx/ident :oxide/group-by-stars
     :onyx/fn :oxide.onyx.impl/group-by-stars
     :onyx/type :function
@@ -126,13 +126,14 @@
     (reduce (fn [j arg] (compile-onyx-job arg j)) compiled args)))
 
 (defmethod compile-onyx-job :Function
-  [[node body] {:keys [workflow] :as job}]
+  [[node body] {:keys [workflow catalog] :as job}]
   (let [f (keyword body)]
     (merge job
            {:workflow
             (if (nil? (ffirst workflow))
               (vec (concat [[f (last (first workflow))]] (rest workflow)))
-              (vec (concat [[nil f] [f (ffirst workflow)]] workflow)))})))
+              (vec (concat [[nil f] [f (ffirst workflow)]] workflow)))
+            :catalog (conj catalog (get-entry base-catalog f))})))
 
 (defmethod compile-onyx-job :Arg
   [[node body] {:keys [workflow] :as job}]
