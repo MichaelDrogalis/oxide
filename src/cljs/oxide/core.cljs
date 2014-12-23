@@ -21,6 +21,7 @@
 
 (defonce app-state (atom {:inputs []
                           :outputs {}
+                          :datomic-uris {}
                           :visualizations {}
                           :current-expression default-expr}))
 
@@ -34,6 +35,7 @@
 (defn handle-job-complete [contents]
   (println (str (:job-id contents) "is done"))
   (swap! app-state assoc-in [:visualizations (:n contents)] (:visualization contents))
+  (swap! app-state assoc-in [:datomic-uris (:n contents)] (:datomic-uri contents))
   (chsk-send! [:job/output {:datomic-uri (:datomic-uri contents) :n (:n contents)}]))
 
 (defn handle-output [contents]
@@ -55,10 +57,14 @@
   (render-state [_ _] (d/pre {:id "editor"} ""))
   (did-mount [_]
              (let [editor (.edit js/ace "editor")]
+               (.require js/ace "ace/ext/language_tools")
                (.setOptions editor
-                            (clj->js {:maxLines 15}))
+                            (clj->js {:maxLines 15
+                                      :enableBasicAutocompletion true}))
                (.setMode (.getSession editor) "ace/mode/clojure")
                (.insert editor default-expr)
+               
+               
                (.on (.getSession editor) "change"
                     (fn [e]
                       (om/transact! data (fn [a] (assoc a :current-expression (.getValue editor)))))))))
@@ -127,7 +133,12 @@
                     (let [v (get-in data [:visualizations k])]
                       (r/well
                        {}
-                       (d/div {:class "text-right"} (d/small (d/a {:href "#"} (str "#" k))))
+                       (d/div {:class "text-right"}
+                              (d/small (d/a {:href
+                                             (str "/job/"
+                                                  (get-in data [:datomic-uris k]) "/"
+                                                  (get-in data [:visualizations k]))}
+                                            (str "#" k))))
                        (d/br)
                        (om/build frozen-input (assoc data :input input))
                        (d/pre

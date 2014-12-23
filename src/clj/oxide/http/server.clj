@@ -75,6 +75,10 @@
              (thread (process-job-output sente event)))
        (recur)))))
 
+(defn get-job-output [req]
+  (prn (:job-id (:params req)))
+  "abc")
+
 (defrecord Httpserver [peer-config]
   component/Lifecycle
   (start [{:keys [sente] :as component}]
@@ -84,6 +88,7 @@
       (GET  "/" [] (page))
       (GET  "/chsk" req ((:ring-ajax-get-or-ws-handshake sente) req))
       (POST "/chsk" req ((:ring-ajax-post sente) req))
+      (GET "/job/:job-id" req (get-job-output req))
       (resources "/")
       (resources "/react" {:root "react"})
       (route/not-found "Page not found"))
