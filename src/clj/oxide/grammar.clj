@@ -46,7 +46,7 @@
 (defmethod compile-workflow :FullExpr
   [[node visual-f more] workflow]
   (let [f (compile-workflow visual-f workflow)]
-    (compile-workflow more (conj workflow [nil (keyword f)]))))
+    (compile-workflow more [[nil (keyword f)]])))
 
 (defmethod compile-workflow :VisualFn
   [[node body] workflow]
@@ -58,16 +58,15 @@
 
 (defmethod compile-workflow :PartialExpr
   [[node function & args] workflow]
-  (let [f (compile-workflow function workflow)
-        flow
-        (if (nil? (first (last workflow)))
-          (vec (conj (butlast workflow) [f (last (last workflow))]))
-          (vec (conj workflow [f (first (last workflow))] [nil f])))]
+  (let [flow (compile-workflow function workflow)]
     (reduce (fn [wf arg] (compile-workflow arg wf)) flow args)))
 
 (defmethod compile-workflow :Function
   [[node body] workflow]
-  (keyword body))
+  (let [f (keyword body)]
+    (if (nil? (ffirst workflow))
+      (vec (concat [[f (last (first workflow))]] (rest workflow)))
+      (vec (concat [[nil f] [f (ffirst workflow)]] workflow)))))
 
 (defmethod compile-workflow :Arg
   [[node body] workflow]
