@@ -172,7 +172,7 @@
 
 (defmethod compile-onyx-job :default
   [leaf {:keys [workflow] :as job}]
-  leaf)
+  (read-string leaf))
 
-(compile-onyx-job parsed {:workflow [] :catalog []})
+(clojure.pprint/pprint (compile-onyx-job parsed {:workflow [] :catalog []}))
 
