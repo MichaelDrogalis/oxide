@@ -112,7 +112,8 @@
               (assoc :workflow [[nil (keyword f)]])
               (assoc :catalog [(get-entry base-catalog :partition-keys)
                                (get-entry base-catalog :read-rows)
-                               (get-entry base-catalog :datomic-out)]))]
+                               (assoc (get-entry base-catalog :datomic-out)
+                                 :datomic/uri (str "datomic:mem//" (java.util.UUID/randomUUID)))]))]
     (compile-onyx-job more j)))
 
 (defmethod compile-onyx-job :VisualFn
