@@ -1,6 +1,7 @@
 (ns oxide.http.server
   (:require [clojure.core.async :refer [thread <!!]]
             [oxide.dev :refer [is-dev? inject-devmode-html browser-repl start-figwheel]]
+            [oxide.grammar :refer [compile-onyx-job get-entry parse-expr]]
             [org.httpkit.server :as http-kit-server]
             [clojure.java.io :as io]
             [compojure.route :refer [resources]]
@@ -30,102 +31,22 @@
             [:security :anti-forgery]
             {:read-token (fn [req] (-> req :params :csrf-token))}))
 
-(defn workflow []
-  [[:partition-keys :read-rows]
-   [:read-rows :group-by-stars]
-;;   [:filter-by-city :group-by-stars]
-;;   [:filter-by-rating :group-by-stars]
-   [:group-by-stars :datomic-out]])
-
-(defn catalog [datomic-uri]
-  [{:onyx/name :partition-keys
-    :onyx/ident :sql/partition-keys
-    :onyx/type :input
-    :onyx/medium :sql
-    :onyx/consumption :concurrent
-    :onyx/bootstrap? true
-    :sql/classname "com.mysql.jdbc.Driver"
-    :sql/subprotocol "mysql"
-    :sql/subname "//127.0.0.1:3306/oxide"
-    :sql/user "root"
-    :sql/password ""
-    :sql/table :yelp_data_set
-    :sql/id :id
-    :sql/rows-per-segment 1000
-    :onyx/batch-size 1000
-    :onyx/max-peers 1
-    :onyx/doc "Partitions a range of primary keys into subranges"}
-
-   {:onyx/name :read-rows
-    :onyx/ident :sql/read-rows
-    :onyx/fn :onyx.plugin.sql/read-rows
-    :onyx/type :function
-    :onyx/consumption :concurrent
-    :sql/classname "com.mysql.jdbc.Driver"
-    :sql/subprotocol "mysql"
-    :sql/subname "//127.0.0.1:3306/oxide"
-    :sql/user "root"
-    :sql/password ""
-    :sql/table :yelp_data_set
-    :sql/id :id
-    :onyx/batch-size 5
-    :onyx/doc "Reads rows of a SQL table bounded by a key range"}
-
-   {:onyx/name :filter-by-city
-    :onyx/ident :oxide/filter-by-city
-    :onyx/fn :oxide.onyx.impl/filter-by-city
-    :onyx/type :function
-    :onyx/consumption :concurrent
-    :oxide/city "Phoenix"
-    :oxide/state "AZ"
-    :onyx/params [:oxide/city :oxide/state]
-    :onyx/batch-size 1000
-    :onyx/doc "Only emit entities that are in this city and state"}
-
-   {:onyx/name :filter-by-rating
-    :onyx/ident :oxide/filter-by-rating
-    :onyx/fn :oxide.onyx.impl/filter-by-rating
-    :onyx/type :function
-    :onyx/consumption :concurrent
-    :oxide/min-rating 4
-    :onyx/params [:oxide/min-rating]
-    :onyx/batch-size 1000
-    :onyx/doc "Only emit entities that at least as good as this rating"}
-
-   {:onyx/name :group-by-stars
-    :onyx/ident :oxide/group-by-stars
-    :onyx/fn :oxide.onyx.impl/group-by-stars
-    :onyx/type :function
-    :onyx/consumption :concurrent
-    :onyx/max-peers 1
-    :onyx/batch-size 1000
-    :onyx/doc "Maintain local state, summing the number of businesses with each star level"}
-
-   {:onyx/name :datomic-out
-    :onyx/ident :datomic/commit-tx
-    :onyx/type :output
-    :onyx/medium :datomic
-    :onyx/consumption :concurrent
-    :datomic/uri datomic-uri
-    :datomic/partition :oxide
-    :onyx/batch-size 1000
-    :onyx/doc "Transacts :datoms to storage"}])
-
-(defn submit-onyx-job [peer-config]
-  (let [datomic-uri (str "datomic:mem://" (java.util.UUID/randomUUID))]
+(defn submit-onyx-job [peer-config catalog workflow]
+  (let [datomic-uri (:datomic/uri (get-entry catalog :datomic-out))]
     (oxide-datomic/set-up-output-database datomic-uri)
     {:datomic-uri datomic-uri
      :job-id
      (onyx.api/submit-job
       peer-config
-      {:catalog (catalog datomic-uri)
-       :workflow (workflow)
+      {:catalog catalog
+       :workflow workflow
        :task-scheduler :onyx.task-scheduler/round-robin})}))
 
 (defn process-submit-job [sente event peer-config]
   (let [expr (:expr (:?data event))
+        {:keys [workflow catalog]} (compile-onyx-job (parse-expr expr) {:catalog [] :workflow []})
         n (:n (:?data event))
-        {:keys [job-id datomic-uri]} (submit-onyx-job peer-config)
+        {:keys [job-id datomic-uri]} (submit-onyx-job peer-config catalog workflow)
         uid (get-in event [:ring-req :cookies "ring-session" :value])]
     (onyx.api/await-job-completion peer-config job-id)
     ((:chsk-send! sente) uid [:job/complete {:job-id job-id :n n :datomic-uri datomic-uri}])))

@@ -28,13 +28,13 @@
   (swap! local-state (fn [state] (assoc state stars (inc (get state stars 0)))))
   [])
 
-(defmethod l-ext/inject-lifecycle-resources :group-by-stars
+(defmethod l-ext/inject-lifecycle-resources :group-by-popularity
   [_ {:keys [onyx.core/queue] :as event}]
   (let [local-state (atom {})]
     {:onyx.core/params [local-state]
      :oxide/state local-state}))
 
-(defmethod l-ext/close-lifecycle-resources :group-by-stars
+(defmethod l-ext/close-lifecycle-resources :group-by-popularity
   [_ {:keys [onyx.core/queue oxide/state] :as event}]
   (let [session (extensions/create-tx-session queue)
         compressed-state (fressian/write {:id 0 :star-counts (pr-str @state)})]

@@ -17,7 +17,7 @@
 
 (enable-console-print!)
 
-(def default-expr "Table [Within [DataSet(\"restaurants\"), \"Baltimore, MD\"]]")
+(def default-expr "(histogram (group-by-popularity (minimum-popularity (within-location (data-set \"Yelp Businesses\") \"Phoenix\" \"AZ\") 3)))")
 
 (defonce app-state (atom {:inputs []
                           :outputs {}

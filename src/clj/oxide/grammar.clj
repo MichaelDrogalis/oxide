@@ -15,7 +15,8 @@
     Constant = String | #'[0-9]'+
     Whitespace = #'\\s+'"))
 
-(def parsed (oxide-grammar "(histogram (group-by-popularity (minimum-popularity (within-location (data-set \"Yelp Businesses\") \"Phoenix\" \"AZ\") 3)))"))
+(defn parse-expr [x]
+  (oxide-grammar x))
 
 (def base-catalog
   [{:onyx/name :partition-keys
@@ -113,7 +114,7 @@
               (assoc :catalog [(get-entry base-catalog :partition-keys)
                                (get-entry base-catalog :read-rows)
                                (assoc (get-entry base-catalog :datomic-out)
-                                 :datomic/uri (str "datomic:mem//" (java.util.UUID/randomUUID)))]))]
+                                 :datomic/uri (str "datomic:mem://" (java.util.UUID/randomUUID)))]))]
     (compile-onyx-job more j)))
 
 (defmethod compile-onyx-job :VisualFn
@@ -174,6 +175,4 @@
 (defmethod compile-onyx-job :default
   [leaf {:keys [workflow] :as job}]
   (read-string leaf))
-
-(clojure.pprint/pprint (compile-onyx-job parsed {:workflow [] :catalog []}))
 
