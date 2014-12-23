@@ -17,10 +17,11 @@
 
 (enable-console-print!)
 
-(def default-expr "(histogram (group-by-popularity (minimum-popularity (within-location (data-set \"Yelp Businesses\") \"Phoenix\" \"AZ\") 3)))")
+(def default-expr "(histogram\n\t(group-by-popularity\n\t\t(minimum-popularity\n\t\t\t(within-location\n\t\t\t\t(data-set \"Yelp Businesses\")\n\t\t\t\t\"Phoenix\" \"AZ\")\n\t\t\t3)))")
 
 (defonce app-state (atom {:inputs []
                           :outputs {}
+                          :visualizations {}
                           :current-expression default-expr}))
 
 (let [{:keys [chsk ch-recv send-fn state]}
@@ -32,6 +33,7 @@
 
 (defn handle-job-complete [contents]
   (println (str (:job-id contents) "is done"))
+  (swap! app-state assoc-in [:visualizations (:n contents)] (:visualization contents))
   (chsk-send! [:job/output {:datomic-uri (:datomic-uri contents) :n (:n contents)}]))
 
 (defn handle-output [contents]
@@ -84,17 +86,14 @@
                (d/td (abbreviate (:address row) 45))
                (d/td (:stars row))))))))
 
-
-;; ({:id 0, :star-counts "{5M 2162, 4M 3087}"})
-
 (defcomponent histogram [data owner]
-  (render-state [_ _] (d/div {:id "histogram"}))
-  (did-mount [_]
+  (render-state [_ _] (d/div {:class "histogram"}))
+  (did-mount [this]
              (let [stars (read-string (:star-counts (first (:output data))))
                    chart (Highcharts/Chart.
-                          (clj->js {:chart {:renderTo "histogram"
+                          (clj->js {:chart {:renderTo (om/get-node owner)
                                             :type "column"}
-                                    :title {:text "Histogram of Yelp Businesses Star Rating"}
+                                    :title {:text "Histogram of Yelp Businesses by Star Rating"}
                                     :xAxis {:categories ["1" "2" "3" "4" "5"]}
                                     :plotOptions {:column {:groupPadding 0
                                                            :pointPadding 0
@@ -113,15 +112,21 @@
                 (d/div
                  (map-indexed
                   (fn [k input]
-                    (r/well
-                     {}
-                     (d/div {:class "text-right"} (d/small (d/a {:href "#"} (str "#" k))))
-                     (d/br)
-                     (d/pre input)
-                     (d/pre
-                      (if-let [output (get-in data [:outputs k])]
-                        (om/build histogram (assoc data :output output) {})
-                        "Pending..."))))
+                    (let [v (get-in data [:visualizations k])]
+                      (prn v)
+                      (r/well
+                       {}
+                       (d/div {:class "text-right"} (d/small (d/a {:href "#"} (str "#" k))))
+                       (d/br)
+                       (d/pre input)
+                       (d/pre
+                        (if-let [output (get-in data [:outputs k])]
+                          (cond (= v "histogram")
+                                (om/build histogram (assoc data :output output) {})
+                                (= v "table")
+                                (table-output output)
+                                :else "Well this is broken")
+                          "Pending...")))))
                   (:inputs data)))))
 
 (defcomponent submit [data owner]
@@ -159,7 +164,7 @@
             {}
             (g/row
              {}
-             (g/col {:xs 10 :md 10} (p/panel {:header (d/h4 "interactive repl")}
+             (g/col {:xs 10 :md 8} (p/panel {:header (d/h4 "interactive repl")}
                                              (g/row {}
                                                     (g/col {:md 12}
                                                            (om/build exchange app {})
@@ -167,3 +172,4 @@
                                                            (om/build submit app {}))))))))))))
    app-state
    {:target (. js/document (getElementById "app"))}))
+

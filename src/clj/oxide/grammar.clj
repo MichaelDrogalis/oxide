@@ -114,7 +114,8 @@
               (assoc :catalog [(get-entry base-catalog :partition-keys)
                                (get-entry base-catalog :read-rows)
                                (assoc (get-entry base-catalog :datomic-out)
-                                 :datomic/uri (str "datomic:mem://" (java.util.UUID/randomUUID)))]))]
+                                 :datomic/uri (str "datomic:mem://" (java.util.UUID/randomUUID)))])
+              (assoc :visualization (second visual-f)))]
     (compile-onyx-job more j)))
 
 (defmethod compile-onyx-job :VisualFn

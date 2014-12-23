@@ -44,26 +44,25 @@
 
 (defn process-submit-job [sente event peer-config]
   (let [expr (:expr (:?data event))
-        {:keys [workflow catalog]} (compile-onyx-job (parse-expr expr) {:catalog [] :workflow []})
+        {:keys [workflow catalog visualization]} (compile-onyx-job (parse-expr expr) {:catalog [] :workflow []})
         n (:n (:?data event))
         {:keys [job-id datomic-uri]} (submit-onyx-job peer-config catalog workflow)
         uid (get-in event [:ring-req :cookies "ring-session" :value])]
     (onyx.api/await-job-completion peer-config job-id)
-    ((:chsk-send! sente) uid [:job/complete {:job-id job-id :n n :datomic-uri datomic-uri}])))
+    ((:chsk-send! sente) uid [:job/complete {:job-id job-id :n n
+                                             :datomic-uri datomic-uri
+                                             :visualization visualization}])))
 
 (defn process-job-output [sente event]
-  (try
-    (let [db-uri (:datomic-uri (:?data event))
-          conn (d/connect db-uri)
-          db (d/db conn)
-          query '[:find ?e :where [?e :id]]
-          results (d/q query db)
-          entities (map (partial into {}) (map (partial d/entity db) (map first results)))
-          uid (get-in event [:ring-req :cookies "ring-session" :value])]
-      ((:chsk-send! sente) uid [:job/output-payload {:payload entities
-                                                     :n (:n (:?data event))}]))
-    (catch Exception e
-      (.printStacktrace e))))
+  (let [db-uri (:datomic-uri (:?data event))
+        conn (d/connect db-uri)
+        db (d/db conn)
+        query '[:find ?e :where [?e :id]]
+        results (d/q query db)
+        entities (map (partial into {}) (map (partial d/entity db) (map first results)))
+        uid (get-in event [:ring-req :cookies "ring-session" :value])]
+    ((:chsk-send! sente) uid [:job/output-payload {:payload entities
+                                                   :n (:n (:?data event))}])))
 
 (defn launch-event-handler [sente peer-config]
   (thread
