@@ -15,7 +15,7 @@
     Constant = String | #'[0-9]'+
     Whitespace = #'\\s+'"))
 
-(def parsed (oxide-grammar "(histogram (group-by-popularity (minimum-popularity (within-location (data-set \"Yelp Businesses\")) 3)))"))
+(def parsed (oxide-grammar "(histogram (group-by-popularity (minimum-popularity (within-location (data-set \"Yelp Businesses\") \"Phoenix\" \"AZ\") 3)))"))
 
 (def base-catalog
   [{:onyx/name :partition-keys
@@ -56,8 +56,8 @@
     :onyx/fn :oxide.onyx.impl/filter-by-city
     :onyx/type :function
     :onyx/consumption :concurrent
-    :oxide/city "Phoenix"
-    :oxide/state "AZ"
+    :oxide/city "<< FILL ME IN >>"
+    :oxide/state "<< FILL ME IN >>"
     :onyx/params [:oxide/city :oxide/state]
     :onyx/batch-size 1000
     :onyx/doc "Only emit entities that are in this city and state"}
@@ -67,7 +67,7 @@
     :onyx/fn :oxide.onyx.impl/filter-by-rating
     :onyx/type :function
     :onyx/consumption :concurrent
-    :oxide/min-rating 4
+    :oxide/min-rating "<< FILL ME IN >>"
     :onyx/params [:oxide/min-rating]
     :onyx/batch-size 1000
     :onyx/doc "Only emit entities that at least as good as this rating"}
@@ -86,13 +86,16 @@
     :onyx/type :output
     :onyx/medium :datomic
     :onyx/consumption :concurrent
-;;    :datomic/uri datomic-uri
+    :datomic/uri "<< FILL ME IN >>"
     :datomic/partition :oxide
     :onyx/batch-size 1000
     :onyx/doc "Transacts :datoms to storage"}])
 
 (defn get-entry [catalog name]
   (first (filter #(= (:onyx/name %) name) catalog)))
+
+(defn nth-entry [catalog name]
+  (first (filter identity (map (fn [entry k] (when (= (:onyx/name entry) name) k)) catalog (range)))))
 
 (defmulti compile-onyx-job
   (fn [[node body] job]
@@ -121,9 +124,12 @@
   (compile-onyx-job body job))
 
 (defmethod compile-onyx-job :PartialExpr
-  [[node function & args] {:keys [workflow] :as job}]
-  (let [compiled (compile-onyx-job function job)]
-    (reduce (fn [j arg] (compile-onyx-job arg j)) compiled args)))
+  [[node function arity-1 & args] {:keys [workflow] :as job}]
+  (let [compiled-base (compile-onyx-job function job)
+        compiled-arity-1 (compile-onyx-job arity-1 compiled-base)
+        f (keyword (second function))
+        indexed-args (into {} (map vector (range) args))]
+    (reduce (fn [j [k arg]] (compile-onyx-job arg (assoc j :opts {:k k :f f}))) compiled-arity-1 indexed-args)))
 
 (defmethod compile-onyx-job :Function
   [[node body] {:keys [workflow catalog] :as job}]
@@ -157,8 +163,12 @@
   " ")
 
 (defmethod compile-onyx-job :Constant
-  [[node body] {:keys [workflow] :as job}]
-  job)
+  [[node body] {:keys [workflow opts] :as job}]
+  (let [{:keys [k f]} opts
+        param (nth (:onyx/params (get-entry base-catalog f)) k)
+        compiled-arg (compile-onyx-job body job)
+        position (nth-entry base-catalog f)]
+    (assoc-in job [:catalog position param] compiled-arg)))
 
 (defmethod compile-onyx-job :default
   [leaf {:keys [workflow] :as job}]
