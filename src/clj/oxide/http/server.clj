@@ -63,7 +63,6 @@
          
          (when (and (= (:fn entry) :volunteer-for-task)
                     (= (:job diff) job-id))
-           (prn "In progress!")
            (let [task (extensions/read-chunk (:log client) :task (:task diff))
                  task-name (:name task)
                  entry (get-entry catalog task-name)]

@@ -50,6 +50,7 @@
     :sql/password ""
     :sql/table :yelp_data_set
     :sql/id :id
+    :onyx/max-peers 1
     :oxide/description "Performing SQL bulk import"
     :onyx/batch-size 5
     :onyx/doc "Reads rows of a SQL table bounded by a key range"}
@@ -61,6 +62,7 @@
     :onyx/consumption :concurrent
     :oxide/city "<< FILL ME IN >>"
     :oxide/state "<< FILL ME IN >>"
+    :onyx/max-peers 1
     :oxide/description "Filtering by location"
     :onyx/params [:oxide/city :oxide/state]
     :onyx/batch-size 1000
@@ -72,6 +74,7 @@
     :onyx/type :function
     :onyx/consumption :concurrent
     :oxide/min-rating "<< FILL ME IN >>"
+    :onyx/max-peers 1
     :oxide/description "Filtering by popularity"
     :onyx/params [:oxide/min-rating]
     :onyx/batch-size 1000
@@ -94,6 +97,7 @@
     :onyx/consumption :concurrent
     :datomic/uri "<< FILL ME IN >>"
     :datomic/partition :oxide
+    :onyx/max-peers 1
     :oxide/description "Caching results to durable storage"
     :onyx/batch-size 1000
     :onyx/doc "Transacts :datoms to storage"}])

@@ -190,7 +190,6 @@
                                 :else "Well this is broken")
                           (if-let [tasks (get-in data [:tasks k])]
                             (d/div
-                             (d/h4 "Onyx workflow plan")
                              (d/ul {:class "fa-ul"}
                               (for [task tasks]
                                 (d/li
