@@ -47,7 +47,11 @@
         {:keys [workflow catalog visualization]} (compile-onyx-job (parse-expr expr) {:catalog [] :workflow []})
         n (:n (:?data event))
         {:keys [job-id datomic-uri]} (submit-onyx-job peer-config catalog workflow)
-        uid (get-in event [:ring-req :cookies "ring-session" :value])]
+        uid (get-in event [:ring-req :cookies "ring-session" :value])
+        tasks (map :oxide/description catalog)]
+
+    ((:chsk-send! sente) uid [:job/tasks {:job-id job-id :n n :tasks tasks}])
+    
     (onyx.api/await-job-completion peer-config job-id)
     ((:chsk-send! sente) uid [:job/complete {:job-id job-id :n n
                                              :datomic-uri datomic-uri

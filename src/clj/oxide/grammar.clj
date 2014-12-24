@@ -33,6 +33,7 @@
     :sql/table :yelp_data_set
     :sql/id :id
     :sql/rows-per-segment 1000
+    :oxide/description "Planning SQL bulk import"
     :onyx/batch-size 1000
     :onyx/max-peers 1
     :onyx/doc "Partitions a range of primary keys into subranges"}
@@ -49,6 +50,7 @@
     :sql/password ""
     :sql/table :yelp_data_set
     :sql/id :id
+    :oxide/description "Performing SQL bulk import"
     :onyx/batch-size 5
     :onyx/doc "Reads rows of a SQL table bounded by a key range"}
 
@@ -59,6 +61,7 @@
     :onyx/consumption :concurrent
     :oxide/city "<< FILL ME IN >>"
     :oxide/state "<< FILL ME IN >>"
+    :oxide/description "Filtering by location"
     :onyx/params [:oxide/city :oxide/state]
     :onyx/batch-size 1000
     :onyx/doc "Only emit entities that are in this city and state"}
@@ -69,6 +72,7 @@
     :onyx/type :function
     :onyx/consumption :concurrent
     :oxide/min-rating "<< FILL ME IN >>"
+    :oxide/description "Filtering by popularity"
     :onyx/params [:oxide/min-rating]
     :onyx/batch-size 1000
     :onyx/doc "Only emit entities that at least as good as this rating"}
@@ -79,6 +83,7 @@
     :onyx/type :function
     :onyx/consumption :concurrent
     :onyx/max-peers 1
+    :oxide/description "Aggregating popularity"
     :onyx/batch-size 1000
     :onyx/doc "Maintain local state, summing the number of businesses with each star level"}
 
@@ -89,6 +94,7 @@
     :onyx/consumption :concurrent
     :datomic/uri "<< FILL ME IN >>"
     :datomic/partition :oxide
+    :oxide/description "Caching results to durable storage"
     :onyx/batch-size 1000
     :onyx/doc "Transacts :datoms to storage"}])
 

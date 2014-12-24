@@ -34,9 +34,15 @@
 
 (defn handle-job-complete [contents]
   (println (str (:job-id contents) "is done"))
-  (swap! app-state assoc-in [:visualizations (:n contents)] (:visualization contents))
-  (swap! app-state assoc-in [:datomic-uris (:n contents)] (:datomic-uri contents))
+  (swap! app-state
+         (fn [state]
+           (-> state
+               (assoc-in [:visualizations (:n contents)] (:visualization contents))
+               (assoc-in [:datomic-uris (:n contents)] (:datomic-uri contents)))))
   (chsk-send! [:job/output {:datomic-uri (:datomic-uri contents) :n (:n contents)}]))
+
+(defn handle-job-tasks [contents]
+  (swap! app-state assoc-in [:tasks (:n contents)] (:tasks contents)))
 
 (defn handle-output [contents]
   (swap! app-state assoc-in [:outputs (:n contents)] (:payload contents)))
@@ -44,6 +50,8 @@
 (defn handle-payload [[event-type contents]]
   (cond (= event-type :job/complete)
         (handle-job-complete contents)
+        (= event-type :job/tasks)
+        (handle-job-tasks contents)
         (= event-type :job/output-payload)
         (handle-output contents)))
 
@@ -143,8 +151,6 @@
                                                       (js/parseFloat (:lng m)))))
                (.fitBounds gmap bounds))))
 
-;; (locate-on-map (minimum-popularity (within-location (data-set "Yelp") "Maddison" "WI") 5))
-
 (defcomponent exchange [data owner]
   (did-update [_ _ _]
               (.scrollTo js/window 0 (.-scrollHeight (.-body js/document))))
@@ -172,7 +178,13 @@
                                 (= v "locate-on-map")
                                 (om/build map-location (assoc data :output output) {})
                                 :else "Well this is broken")
-                          "Pending...")))))
+                          (if-let [tasks (get-in data [:tasks k])]
+                            (d/div
+                             (d/h4 "Onyx workflow plan")
+                             (d/ul
+                              (for [task tasks]
+                                (d/li task))))
+                            "Pending..."))))))
                   (:inputs data)))))
 
 (defcomponent submit [data owner]
