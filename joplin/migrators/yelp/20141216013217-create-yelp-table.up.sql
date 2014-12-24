@@ -25,5 +25,8 @@ saturday_close_hour varchar(5),
 
 address varchar(128),
 categories varchar(256),
-stars decimal);
+stars decimal,
+
+latitude varchar(32),
+longitude varchar(32));
 

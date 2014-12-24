@@ -18,6 +18,9 @@
                       {:business_name (:name parsed)
                        :address (:full_address parsed)
                        :stars (:stars parsed)
+
+                       :latitude (:latitude parsed)
+                       :longitude (:longitude parsed)
                                            
                        :sunday_open_hour  (:open (:Sunday (:hours parsed)))
                        :sunday_close_hour (:close (:Sunday (:hours parsed)))

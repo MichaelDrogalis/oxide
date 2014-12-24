@@ -121,6 +121,18 @@
     :db.install/_attribute :db.part/db}
 
    {:db/id #db/id [:db.part/db]
+    :db/ident :latitude
+    :db/valueType :db.type/string
+    :db/cardinality :db.cardinality/one
+    :db.install/_attribute :db.part/db}
+
+   {:db/id #db/id [:db.part/db]
+    :db/ident :longitude
+    :db/valueType :db.type/string
+    :db/cardinality :db.cardinality/one
+    :db.install/_attribute :db.part/db}
+
+   {:db/id #db/id [:db.part/db]
     :db/ident :star-counts
     :db/valueType :db.type/string
     :db/cardinality :db.cardinality/one

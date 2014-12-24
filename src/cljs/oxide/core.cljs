@@ -63,8 +63,6 @@
                                       :enableBasicAutocompletion true}))
                (.setMode (.getSession editor) "ace/mode/clojure")
                (.insert editor default-expr)
-               
-               
                (.on (.getSession editor) "change"
                     (fn [e]
                       (om/transact! data (fn [a] (assoc a :current-expression (.getValue editor)))))))))
@@ -123,6 +121,30 @@
                                                      (get stars 5)]
                                               :name "Number of businesses"}]}))])))
 
+(defcomponent map-location [data owner]
+  (render-state [_ _] (d/div))
+  (did-mount [this]
+             (let [markers (map (fn [x]
+                                  {:title (:business_name x)
+                                   :lat (js/parseFloat (:latitude x))
+                                   :lng (js/parseFloat (:longitude x))})
+                                (:output data))
+                   gmap
+                   (js/GMaps. (clj->js {:div (om/get-node owner)
+                                        :height "300px"
+                                        :width "100%"
+                                        :zoom 10
+                                        :lat -12.043333
+                                        :lng -77.028333}))
+                   bounds (google.maps/LatLngBounds.)]
+               (doseq [m markers]
+                 (.addMarker gmap (clj->js m))
+                 (.extend bounds (google.maps/LatLng. (js/parseFloat (:lat m))
+                                                      (js/parseFloat (:lng m)))))
+               (.fitBounds gmap bounds))))
+
+;; (locate-on-map (minimum-popularity (within-location (data-set "Yelp") "Maddison" "WI") 5))
+
 (defcomponent exchange [data owner]
   (did-update [_ _ _]
               (.scrollTo js/window 0 (.-scrollHeight (.-body js/document))))
@@ -147,6 +169,8 @@
                                 (om/build histogram (assoc data :output output) {})
                                 (= v "table")
                                 (table-output output)
+                                (= v "locate-on-map")
+                                (om/build map-location (assoc data :output output) {})
                                 :else "Well this is broken")
                           "Pending...")))))
                   (:inputs data)))))
