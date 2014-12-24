@@ -44,6 +44,9 @@
 (defn handle-job-tasks [contents]
   (swap! app-state assoc-in [:tasks (:n contents)] (:tasks contents)))
 
+(defn handle-completed-task [contents]
+  (swap! app-state assoc-in [:completions (:n contents) (:description contents)] true))
+
 (defn handle-output [contents]
   (swap! app-state assoc-in [:outputs (:n contents)] (:payload contents)))
 
@@ -52,6 +55,8 @@
         (handle-job-complete contents)
         (= event-type :job/tasks)
         (handle-job-tasks contents)
+        (= event-type :job/completed-task)
+        (handle-completed-task contents)
         (= event-type :job/output-payload)
         (handle-output contents)))
 
@@ -181,9 +186,14 @@
                           (if-let [tasks (get-in data [:tasks k])]
                             (d/div
                              (d/h4 "Onyx workflow plan")
-                             (d/ul
+                             (d/ul {:class "fa-ul"}
                               (for [task tasks]
-                                (d/li task))))
+                                (d/li
+                                 (d/span
+                                  (let [done? (get-in data [:completions k task])
+                                        attr (if done? "fa-li fa fa-check-square" "fa-li fa fa-spinner fa-spin")]
+                                    (d/i {:class attr}))
+                                  task)))))
                             "Pending..."))))))
                   (:inputs data)))))
 

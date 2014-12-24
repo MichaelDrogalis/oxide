@@ -1,5 +1,5 @@
 (ns oxide.http.server
-  (:require [clojure.core.async :refer [thread <!!]]
+  (:require [clojure.core.async :refer [chan thread <!!]]
             [oxide.dev :refer [is-dev? inject-devmode-html browser-repl start-figwheel]]
             [oxide.grammar :refer [compile-onyx-job get-entry parse-expr]]
             [org.httpkit.server :as http-kit-server]
@@ -14,9 +14,8 @@
             [compojure.route :as route]
             [com.stuartsierra.component :as component]
             [datomic.api :as d]
-            [onyx.peer.task-lifecycle-extensions :as l-ext]
-            [onyx.system :refer [onyx-development-env]]
-            [onyx.plugin.core-async :refer [take-segments!]]
+            [onyx.system :as system]
+            [onyx.extensions :as extensions]
             [onyx.plugin.datomic]
             [onyx.plugin.sql]
             [onyx.api]
@@ -42,6 +41,26 @@
        :workflow workflow
        :task-scheduler :onyx.task-scheduler/round-robin})}))
 
+(defn report-progress [sente peer-config job-id n uid catalog]
+  (thread
+   (let [ch (chan 100)
+         client (component/start (system/onyx-client peer-config))]
+     (extensions/subscribe-to-log (:log client) 0 ch)
+     (loop [replica {:job-scheduler (:onyx.peer/job-scheduler peer-config)}]
+       (let [position (<!! ch)
+             entry (extensions/read-log-entry (:log client) position)
+             new-replica (extensions/apply-log-entry entry replica)
+             tasks (get (:tasks new-replica) job-id)
+             complete-tasks (get (:completions new-replica) job-id)]
+         (when (and (= (:fn entry) :complete-task)
+                    (= (:job (:args entry)) job-id))
+           (let [task (extensions/read-chunk (:log client) :task (:task (:args entry)))
+                 task-name (:name task)
+                 entry (get-entry catalog task-name)]
+             ((:chsk-send! sente) uid [:job/completed-task {:job-id job-id :n n :description (:oxide/description entry)}])))
+         (when (or (nil? tasks) (not= (into #{} tasks) (into #{} complete-tasks)))
+          (recur new-replica)))))))
+
 (defn process-submit-job [sente event peer-config]
   (let [expr (:expr (:?data event))
         {:keys [workflow catalog visualization]} (compile-onyx-job (parse-expr expr) {:catalog [] :workflow []})
@@ -51,6 +70,8 @@
         tasks (map :oxide/description catalog)]
 
     ((:chsk-send! sente) uid [:job/tasks {:job-id job-id :n n :tasks tasks}])
+
+    (report-progress sente peer-config job-id n uid catalog)
     
     (onyx.api/await-job-completion peer-config job-id)
     ((:chsk-send! sente) uid [:job/complete {:job-id job-id :n n
