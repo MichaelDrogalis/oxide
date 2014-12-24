@@ -50,14 +50,25 @@
        (let [position (<!! ch)
              entry (extensions/read-log-entry (:log client) position)
              new-replica (extensions/apply-log-entry entry replica)
+             diff (extensions/replica-diff entry replica new-replica)
              tasks (get (:tasks new-replica) job-id)
              complete-tasks (get (:completions new-replica) job-id)]
+         
          (when (and (= (:fn entry) :complete-task)
                     (= (:job (:args entry)) job-id))
            (let [task (extensions/read-chunk (:log client) :task (:task (:args entry)))
                  task-name (:name task)
                  entry (get-entry catalog task-name)]
              ((:chsk-send! sente) uid [:job/completed-task {:job-id job-id :n n :description (:oxide/description entry)}])))
+         
+         (when (and (= (:fn entry) :volunteer-for-task)
+                    (= (:job diff) job-id))
+           (prn "In progress!")
+           (let [task (extensions/read-chunk (:log client) :task (:task diff))
+                 task-name (:name task)
+                 entry (get-entry catalog task-name)]
+             ((:chsk-send! sente) uid [:job/started-task {:job-id job-id :n n :description (:oxide/description entry)}])))
+         
          (when (or (nil? tasks) (not= (into #{} tasks) (into #{} complete-tasks)))
           (recur new-replica)))))))
 
@@ -67,7 +78,10 @@
         n (:n (:?data event))
         {:keys [job-id datomic-uri]} (submit-onyx-job peer-config catalog workflow)
         uid (get-in event [:ring-req :cookies "ring-session" :value])
-        tasks (map :oxide/description catalog)]
+        tasks (conj (mapv (fn [t-name] (:oxide/description (get-entry catalog t-name))) (map first workflow))
+                    (:oxide/description (get-entry catalog (last (last workflow)))))]
+
+    (prn tasks)
 
     ((:chsk-send! sente) uid [:job/tasks {:job-id job-id :n n :tasks tasks}])
 

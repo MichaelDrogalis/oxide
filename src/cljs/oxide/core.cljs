@@ -44,6 +44,9 @@
 (defn handle-job-tasks [contents]
   (swap! app-state assoc-in [:tasks (:n contents)] (:tasks contents)))
 
+(defn handle-started-task [contents]
+  (swap! app-state assoc-in [:in-progress (:n contents) (:description contents)] true))
+
 (defn handle-completed-task [contents]
   (swap! app-state assoc-in [:completions (:n contents) (:description contents)] true))
 
@@ -55,6 +58,8 @@
         (handle-job-complete contents)
         (= event-type :job/tasks)
         (handle-job-tasks contents)
+        (= event-type :job/started-task)
+        (handle-started-task contents)
         (= event-type :job/completed-task)
         (handle-completed-task contents)
         (= event-type :job/output-payload)
@@ -191,8 +196,11 @@
                                 (d/li
                                  (d/span
                                   (let [done? (get-in data [:completions k task])
-                                        attr (if done? "fa-li fa fa-check-square" "fa-li fa fa-spinner fa-spin")]
-                                    (d/i {:class attr}))
+                                        progress? (get-in data [:in-progress k task])
+                                        status (cond done? "fa-li fa fa-check-square"
+                                                     progress? "fa-li fa fa-spinner fa-spin"
+                                                     :else "fa-li fa fa-square" )]
+                                    (d/i {:class status}))
                                   task)))))
                             "Pending..."))))))
                   (:inputs data)))))
