@@ -21,6 +21,8 @@
 
 (def zk-port 2185)
 
+(def scheduler :onyx.job-scheduler/round-robin)
+
 (def env-config
   {:hornetq/mode :vm
    :hornetq/server? true
@@ -28,6 +30,7 @@
    :zookeeper/address zk-addr
    :zookeeper/server? true
    :zookeeper.server/port zk-port
+   :onyx.peer/job-scheduler scheduler
    :onyx/id id})
 
 (def peer-config
@@ -36,9 +39,9 @@
    :onyx/id id
    :onyx.peer/inbox-capacity 1000
    :onyx.peer/outbox-capacity 1000
-   :onyx.peer/job-scheduler :onyx.job-scheduler/round-robin})
+   :onyx.peer/job-scheduler scheduler})
 
-(def n-peers 1)
+(def n-peers 4)
 
 (defn get-system []
   (component/system-map

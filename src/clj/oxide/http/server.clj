@@ -45,8 +45,7 @@
   (thread
    (let [ch (chan 100)
          client (component/start (system/onyx-client peer-config))]
-     (extensions/subscribe-to-log (:log client) 0 ch)
-     (loop [replica {:job-scheduler (:onyx.peer/job-scheduler peer-config)}]
+     (loop [replica (extensions/subscribe-to-log (:log client) ch)]
        (let [position (<!! ch)
              entry (extensions/read-log-entry (:log client) position)
              new-replica (extensions/apply-log-entry entry replica)
